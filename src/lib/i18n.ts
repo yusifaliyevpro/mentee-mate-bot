@@ -147,7 +147,7 @@ const az: Messages = {
   noDays: "heç biri",
   active: "▶️ aktiv",
   pausedStatus: "⏸ dayandırılıb",
-  weekdays: ["B.e.", "Ç.a.", "Ç.", "C.a.", "C.", "Ş.", "B."],
+  weekdays: ["1-ci gün", "2-ci gün", "3-cü gün", "4-cü gün", "5-ci gün", "6-cı gün", "7-ci gün"],
   btnTime: "⏰ Saat",
   btnDays: "📅 Günlər",
   btnMessage: "💬 Mətn",
