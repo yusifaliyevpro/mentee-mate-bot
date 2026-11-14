@@ -25,8 +25,11 @@ export interface Settings {
 
 export type ReminderRow = ScheduleRow & { message: string | null };
 
-type MemberUpdate = Partial<Pick<Member, "remind_at" | "weekdays" | "message" | "paused" | "awaiting">>;
-type DayUpdate = Partial<Record<"reminded_at" | "snooze_until" | "nudged_at" | "done_at", number | null>>;
+const MEMBER_FIELDS = ["remind_at", "weekdays", "message", "paused", "awaiting"] as const;
+const DAY_FIELDS = ["reminded_at", "snooze_until", "nudged_at", "done_at"] as const;
+
+type MemberUpdate = Partial<Pick<Member, (typeof MEMBER_FIELDS)[number]>>;
+type DayUpdate = Partial<Record<(typeof DAY_FIELDS)[number], number | null>>;
 type SettingKey = "lang" | "digest_mode" | "digest_sent_day";
 
 export function normalizeUsername(raw: string): string | null {
@@ -56,7 +59,7 @@ export function upsertAdmin(db: D1Database, username: string, tgId: number, name
 }
 
 export async function updateMember(db: D1Database, tgId: number, update: MemberUpdate): Promise<Member> {
-  const keys = Object.keys(update) as (keyof MemberUpdate)[];
+  const keys = MEMBER_FIELDS.filter((key) => key in update);
   const member = await db
     .prepare(`UPDATE members SET ${keys.map((key) => `${key} = ?`).join(", ")} WHERE tg_id = ? RETURNING *`)
     .bind(...keys.map((key) => update[key] ?? null), tgId)
@@ -104,7 +107,7 @@ export function getDay(db: D1Database, tgId: number, day: string): Promise<DayUp
 }
 
 export async function setDay(db: D1Database, tgId: number, day: string, update: DayUpdate): Promise<void> {
-  const keys = Object.keys(update) as (keyof DayUpdate)[];
+  const keys = DAY_FIELDS.filter((key) => key in update);
   await db
     .prepare(
       `INSERT INTO days (tg_id, day, ${keys.join(", ")}) VALUES (?, ?, ${keys.map(() => "?").join(", ")})

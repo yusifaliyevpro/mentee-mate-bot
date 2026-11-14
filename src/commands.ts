@@ -10,7 +10,11 @@ export async function syncCommands(api: Api, lang: Lang, adminId: number): Promi
   const user = USER_COMMANDS.map((command) => ({ command, description: descriptions[command] }));
   const admin = ADMIN_COMMANDS.map((command) => ({ command, description: descriptions[command] }));
   await api.setMyCommands(user);
-  if (Number.isSafeInteger(adminId)) {
+  if (!Number.isSafeInteger(adminId)) return;
+  try {
     await api.setMyCommands([...user, ...admin], { scope: { type: "chat", chat_id: adminId } });
+  } catch (error) {
+    // Fails with "chat not found" until the admin has pressed Start; /start retries it.
+    console.warn("Could not set admin commands:", error);
   }
 }

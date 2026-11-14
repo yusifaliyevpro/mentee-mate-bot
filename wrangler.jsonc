@@ -1,33 +1,22 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "mentee-mate-bot",
-	"main": "src/index.ts",
-	"compatibility_date": "2026-11-01",
-	"observability": {
-		"enabled": true
-	},
-	// Every minute: sends due reminders, snoozes, the 23:50 nudge and the 10:00 mentor summary.
-	"triggers": {
-		"crons": [
-			"* * * * *"
-		]
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "mentee-mate-bot",
-			// Replace with the id printed by `pnpm wrangler d1 create mentee-mate-bot`.
-			"database_id": "00000000-0000-0000-0000-000000000000",
-			"migrations_dir": "migrations",
-		},
-		{
-			"binding": "mentee_mate_bot",
-			"database_name": "mentee-mate-bot",
-			"database_id": "04a920bf-3bd1-4ea2-bb44-28218f74786d"
-		},
-	],
-	// BOT_TOKEN, WEBHOOK_SECRET and ADMIN_ID are secrets: set them with `pnpm wrangler secret put <NAME>`.
-	"vars": {
-		"TIMEZONE": "Asia/Baku"
-	},
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mentee-mate-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "workers_dev": true,
+  "preview_urls": false,
+  // Every minute: sends due reminders, snoozes, the 23:50 nudge and the 10:00 mentor summary.
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mentee-mate-bot",
+      // Self-hosting? Replace with the id printed by `pnpm wrangler d1 create mentee-mate-bot`.
+      "database_id": "04a920bf-3bd1-4ea2-bb44-28218f74786d",
+      "migrations_dir": "migrations",
+    },
+  ],
+  // BOT_TOKEN, WEBHOOK_SECRET and ADMIN_ID are secrets: set them with `pnpm wrangler secret put <NAME>`.
+  "vars": { "TIMEZONE": "Asia/Baku" },
 }

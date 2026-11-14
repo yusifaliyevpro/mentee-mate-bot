@@ -24,7 +24,7 @@ describe("digestEntries", () => {
   });
 
   it("counts a day off as done when they wrote anyway", () => {
-    const [entry] = digestEntries([{ ...rows[1]!, done_at: 1 }], "2026-11-14");
+    const [entry] = digestEntries([{ ...rows[1], done_at: 1 }], "2026-11-14");
     expect(entry?.status).toBe("done");
   });
 });

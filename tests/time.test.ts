@@ -13,7 +13,11 @@ import { TZ, baku } from "./helpers";
 
 describe("localTime", () => {
   it("converts to Baku wall-clock time", () => {
-    expect(localTime(new Date("2026-11-14T17:30:00Z"), TZ)).toEqual({ date: "2026-11-14", minutes: 21 * 60 + 30, weekday: 5 });
+    expect(localTime(new Date("2026-11-14T17:30:00Z"), TZ)).toEqual({
+      date: "2026-11-14",
+      minutes: 21 * 60 + 30,
+      weekday: 5,
+    });
   });
 
   it("handles midnight as hour 0", () => {

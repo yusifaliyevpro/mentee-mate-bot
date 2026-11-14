@@ -1,3 +1,4 @@
+import type { InlineKeyboard } from "grammy";
 import { describe, expect, it } from "vitest";
 import { normalizeUsername } from "../src/lib/db";
 import { messages } from "../src/lib/i18n";
@@ -14,13 +15,13 @@ import { member } from "./helpers";
 
 const t = messages.en;
 
-const callbackData = (keyboard: { inline_keyboard: { callback_data?: string }[][] }) =>
-  keyboard.inline_keyboard.flat().map((button) => button.callback_data);
+const callbackData = (keyboard: InlineKeyboard) =>
+  keyboard.inline_keyboard.flat().map((button) => ("callback_data" in button ? button.callback_data : undefined));
 
 describe("i18n", () => {
   it("has the same keys in both languages", () => {
-    expect(Object.keys(messages.az).sort()).toEqual(Object.keys(messages.en).sort());
-    expect(Object.keys(messages.az.commands).sort()).toEqual(Object.keys(messages.en.commands).sort());
+    expect(Object.keys(messages.az).toSorted()).toEqual(Object.keys(messages.en).toSorted());
+    expect(Object.keys(messages.az.commands).toSorted()).toEqual(Object.keys(messages.en.commands).toSorted());
   });
 
   it("has seven weekdays in both languages", () => {
@@ -70,7 +71,9 @@ describe("pickers", () => {
   });
 
   it("marks active days", () => {
-    const labels = daysKeyboard(t, 0b000_0001).inline_keyboard.flat().map((button) => button.text);
+    const labels = daysKeyboard(t, 0b000_0001)
+      .inline_keyboard.flat()
+      .map((button) => button.text);
     expect(labels[0]).toBe("✅ Mon");
     expect(labels[1]).toBe("▫️ Tue");
   });

@@ -35,7 +35,11 @@ export default {
       if (request.headers.get("x-setup-secret") !== env.WEBHOOK_SECRET) {
         return new Response("Unauthorized", { status: 401 });
       }
-      return setup(env, url.origin);
+      try {
+        return await setup(env, url.origin);
+      } catch (error) {
+        return Response.json({ ok: false, error: String(error) }, { status: 500 });
+      }
     }
     return new Response("MenteeMateBot is running.", { status: url.pathname === "/" ? 200 : 404 });
   },

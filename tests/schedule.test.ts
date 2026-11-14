@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planTick } from "../src/lib/schedule";
+import { planTick, reminderTimePassed } from "../src/lib/schedule";
 import { TZ, baku, scheduleRow, seconds } from "./helpers";
 
 const kinds = (rows: ReturnType<typeof scheduleRow>[], local: string) =>
@@ -66,5 +66,20 @@ describe("planTick nudge", () => {
 
   it("does not nudge on a day off", () => {
     expect(kinds([scheduleRow({ weekdays: 0b001_1111 })], "2026-11-14 23:50")).toEqual([]);
+  });
+});
+
+describe("reminderTimePassed", () => {
+  it("is true once today's time has gone by", () => {
+    expect(reminderTimePassed(21 * 60, baku("2026-11-14 21:05"), TZ)).toBe(true);
+  });
+
+  it("is false at or before the chosen minute", () => {
+    expect(reminderTimePassed(21 * 60, baku("2026-11-14 21:00"), TZ)).toBe(false);
+    expect(reminderTimePassed(21 * 60, baku("2026-11-14 20:30"), TZ)).toBe(false);
+  });
+
+  it("is false after midnight, before the new day starts", () => {
+    expect(reminderTimePassed(21 * 60, baku("2026-11-15 01:00"), TZ)).toBe(false);
   });
 });

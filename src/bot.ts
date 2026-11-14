@@ -4,6 +4,7 @@ import type { Env } from "./env";
 import * as db from "./lib/db";
 import { isDigestMode } from "./lib/digest";
 import { type Messages, isLang, messages } from "./lib/i18n";
+import { reminderTimePassed } from "./lib/schedule";
 import { formatMinutes, localTime, logicalDay, toggleDay, unixSeconds } from "./lib/time";
 import {
   MAX_MESSAGE_LENGTH,
@@ -29,13 +30,22 @@ export interface BotContext extends Context {
 }
 
 const DAY_PATTERN = "(\\d{4}-\\d{2}-\\d{2})";
+const now = () => new Date();
 
 export function createBot(env: Env): Bot<BotContext> {
   const bot = new Bot<BotContext>(env.BOT_TOKEN);
   const adminId = Number(env.ADMIN_ID);
   const timeZone = env.TIMEZONE;
-  const now = () => new Date();
   const clock = (at: Date) => formatMinutes(localTime(at, timeZone).minutes);
+
+  // Mark today as reminded so a time that already passed doesn't fire as a late catch-up.
+  const skipPassedReminder = async (tgId: number, remindAt: number) => {
+    const at = now();
+    if (!reminderTimePassed(remindAt, at, timeZone)) return;
+    const { day } = logicalDay(at, timeZone);
+    const existing = await db.getDay(env.DB, tgId, day);
+    if (!existing?.reminded_at) await db.setDay(env.DB, tgId, day, { reminded_at: unixSeconds(at) });
+  };
 
   bot.use(async (ctx, next) => {
     if (!ctx.from || ctx.chat?.type !== "private") return;
@@ -51,6 +61,7 @@ export function createBot(env: Env): Bot<BotContext> {
       } else if (username) {
         member = await db.claimMember(env.DB, username, ctx.from.id, ctx.from.first_name);
       }
+      if (member) await skipPassedReminder(ctx.from.id, member.remind_at);
     }
     if (!member) {
       if (ctx.callbackQuery) await ctx.answerCallbackQuery(t.notAllowed);
@@ -64,6 +75,7 @@ export function createBot(env: Env): Bot<BotContext> {
 
   bot.command("start", async (ctx) => {
     const name = ctx.from?.first_name ?? "";
+    if (ctx.isAdmin) await syncCommands(ctx.api, ctx.settings.lang, adminId);
     if (ctx.member.role === "mentor") {
       await ctx.reply(ctx.t.mentorWelcome(name));
       return;
@@ -89,7 +101,10 @@ export function createBot(env: Env): Bot<BotContext> {
 
   admin.callbackQuery(/^a:lang:(\w+)$/, async (ctx) => {
     const lang = ctx.match[1];
-    if (!isLang(lang)) return ctx.answerCallbackQuery();
+    if (!isLang(lang)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     await db.setSetting(env.DB, "lang", lang);
     await syncCommands(ctx.api, lang, adminId);
     await ctx.answerCallbackQuery();
@@ -98,15 +113,24 @@ export function createBot(env: Env): Bot<BotContext> {
 
   admin.callbackQuery(/^a:digest:(\w+)$/, async (ctx) => {
     const digestMode = ctx.match[1];
-    if (!isDigestMode(digestMode)) return ctx.answerCallbackQuery();
+    if (!isDigestMode(digestMode)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     await db.setSetting(env.DB, "digest_mode", digestMode);
     await ctx.answerCallbackQuery();
     await showAdmin(ctx, { ...ctx.settings, digestMode }, true);
   });
 
   admin.command("allow", async (ctx) => {
-    const usernames = ctx.match.split(/[\s,]+/).filter(Boolean).map(db.normalizeUsername);
-    if (usernames.length === 0 || usernames.includes(null)) return ctx.reply(ctx.t.usageAllow);
+    const usernames = ctx.match
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map(db.normalizeUsername);
+    if (usernames.length === 0 || usernames.includes(null)) {
+      await ctx.reply(ctx.t.usageAllow);
+      return;
+    }
     const valid = usernames.filter((username): username is string => username !== null);
     await db.allowMembers(env.DB, valid, "mentee");
     await ctx.reply(ctx.t.allowed(valid.map((username) => `@${username}`)));
@@ -114,14 +138,20 @@ export function createBot(env: Env): Bot<BotContext> {
 
   admin.command("mentor", async (ctx) => {
     const username = db.normalizeUsername(ctx.match);
-    if (!username) return ctx.reply(ctx.t.usageMentor);
+    if (!username) {
+      await ctx.reply(ctx.t.usageMentor);
+      return;
+    }
     await db.allowMembers(env.DB, [username], "mentor");
     await ctx.reply(ctx.t.mentorSet(`@${username}`));
   });
 
   admin.command("remove", async (ctx) => {
     const username = db.normalizeUsername(ctx.match);
-    if (!username) return ctx.reply(ctx.t.usageRemove);
+    if (!username) {
+      await ctx.reply(ctx.t.usageRemove);
+      return;
+    }
     const removed = await db.removeMember(env.DB, username);
     await ctx.reply(removed ? ctx.t.removed(`@${username}`) : ctx.t.notFound(`@${username}`));
   });
@@ -171,8 +201,14 @@ export function createBot(env: Env): Bot<BotContext> {
 
   mentee.callbackQuery(new RegExp(`^done:${DAY_PATTERN}$`), async (ctx) => {
     const at = now();
-    if (ctx.match[1] !== logicalDay(at, timeZone).day) return ctx.answerCallbackQuery(ctx.t.dayOver);
-    if ((await markDone(ctx, ctx.match[1], at)) === "already") return ctx.answerCallbackQuery(ctx.t.alreadyDone);
+    if (ctx.match[1] !== logicalDay(at, timeZone).day) {
+      await ctx.answerCallbackQuery(ctx.t.dayOver);
+      return;
+    }
+    if ((await markDone(ctx, ctx.match[1], at)) === "already") {
+      await ctx.answerCallbackQuery(ctx.t.alreadyDone);
+      return;
+    }
     await ctx.answerCallbackQuery();
     await ctx.editMessageText(ctx.t.doneAt(clock(at)));
   });
@@ -180,9 +216,15 @@ export function createBot(env: Env): Bot<BotContext> {
   mentee.callbackQuery(new RegExp(`^snooze:(\\d+):${DAY_PATTERN}$`), async (ctx) => {
     const at = now();
     const day = ctx.match[2] ?? "";
-    if (day !== logicalDay(at, timeZone).day) return ctx.answerCallbackQuery(ctx.t.dayOver);
+    if (day !== logicalDay(at, timeZone).day) {
+      await ctx.answerCallbackQuery(ctx.t.dayOver);
+      return;
+    }
     const existing = await db.getDay(env.DB, ctx.userId, day);
-    if (existing?.done_at) return ctx.answerCallbackQuery(ctx.t.alreadyDone);
+    if (existing?.done_at) {
+      await ctx.answerCallbackQuery(ctx.t.alreadyDone);
+      return;
+    }
 
     const until = new Date(at.getTime() + Number(ctx.match[1]) * 60_000);
     await db.setDay(env.DB, ctx.userId, day, { snooze_until: unixSeconds(until) });
@@ -201,7 +243,10 @@ export function createBot(env: Env): Bot<BotContext> {
 
   mentee.callbackQuery(/^s:h:(\d+)$/, async (ctx) => {
     const hour = Number(ctx.match[1]);
-    if (!PICKER_HOURS.includes(hour)) return ctx.answerCallbackQuery();
+    if (!PICKER_HOURS.includes(hour)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     await ctx.answerCallbackQuery();
     await ctx.editMessageText(ctx.t.pickMinute(String(hour).padStart(2, "0")), {
       reply_markup: minutesKeyboard(ctx.t, hour),
@@ -210,7 +255,11 @@ export function createBot(env: Env): Bot<BotContext> {
 
   mentee.callbackQuery(/^s:t:(\d+)$/, async (ctx) => {
     const minutes = Number(ctx.match[1]);
-    if (!isPickerTime(minutes)) return ctx.answerCallbackQuery();
+    if (!isPickerTime(minutes)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    await skipPassedReminder(ctx.userId, minutes);
     await showSettings(ctx, await db.updateMember(env.DB, ctx.userId, { remind_at: minutes }));
   });
 
@@ -245,8 +294,14 @@ export function createBot(env: Env): Bot<BotContext> {
 
   mentee.on("message:text", async (ctx) => {
     const text = ctx.message.text.trim();
-    if (ctx.member.awaiting !== "message" || text.startsWith("/")) return ctx.reply(ctx.t.unknown);
-    if (text.length > MAX_MESSAGE_LENGTH) return ctx.reply(ctx.t.messageTooLong);
+    if (ctx.member.awaiting !== "message" || text.startsWith("/")) {
+      await ctx.reply(ctx.t.unknown);
+      return;
+    }
+    if (text.length > MAX_MESSAGE_LENGTH) {
+      await ctx.reply(ctx.t.messageTooLong);
+      return;
+    }
     const member = await db.updateMember(env.DB, ctx.userId, { message: text, awaiting: null });
     await ctx.reply(ctx.t.messageSaved);
     await ctx.reply(settingsText(ctx.t, member), { reply_markup: settingsKeyboard(ctx.t, member) });

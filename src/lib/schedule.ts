@@ -28,6 +28,12 @@ export interface Action<T extends ScheduleRow> {
   row: T;
 }
 
+/** True when today's reminder time is already behind us, so a new or changed time shouldn't trigger a catch-up. */
+export function reminderTimePassed(remindAt: number, now: Date, timeZone: string): boolean {
+  const { minutes } = localTime(now, timeZone);
+  return minutes >= DAY_START_HOUR * 60 && minutes > remindAt;
+}
+
 /** Decides which messages a single cron tick should send. At most one per mentee. */
 export function planTick<T extends ScheduleRow>(rows: T[], now: Date, timeZone: string): Action<T>[] {
   const { minutes } = localTime(now, timeZone);
