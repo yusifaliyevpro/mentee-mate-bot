@@ -343,12 +343,39 @@ describe("admin commands", () => {
       [
         az.membersTitle,
         "",
-        `• @leyla_mentor (${az.mentorTag}, ${az.notStarted})`,
+        "• Yusif (@yusifaliyevpro)",
         `• Aysel (@aysel_m) (${az.pausedStatus})`,
         `• @murad_k (${az.notStarted})`,
-        "• Yusif (@yusifaliyevpro)",
+        `• @leyla_mentor (${az.mentorTag}, ${az.notStarted})`,
       ].join("\n"),
     );
+  });
+
+  it("lists members in the order they were added, whatever their name or role", async () => {
+    await h.send(ADMIN, "/allow @zaur_z @aysel_m");
+    await h.send(ADMIN, "/mentor @leyla_mentor");
+    // Spread the additions over time, out of insertion order, to check the timestamp decides.
+    h.db.exec("UPDATE members SET created_at = 100 WHERE username = 'yusifaliyevpro'");
+    h.db.exec("UPDATE members SET created_at = 300 WHERE username = 'zaur_z'");
+    h.db.exec("UPDATE members SET created_at = 200 WHERE username = 'leyla_mentor'");
+    h.db.exec("UPDATE members SET created_at = 400 WHERE username = 'aysel_m'");
+    h.telegram.clear();
+    await h.send(ADMIN, "/members");
+    const order = h.telegram.sentTo(ADMIN.id)[0]?.split("\n").slice(2);
+    expect(order).toEqual([
+      "• Yusif (@yusifaliyevpro)",
+      `• @leyla_mentor (${az.mentorTag}, ${az.notStarted})`,
+      `• @zaur_z (${az.notStarted})`,
+      `• @aysel_m (${az.notStarted})`,
+    ]);
+  });
+
+  it("keeps the order of names given in one /allow", async () => {
+    await h.send(ADMIN, "/allow @zaur_z @aysel_m @murad_k");
+    h.telegram.clear();
+    await h.send(ADMIN, "/members");
+    const usernames = h.telegram.sentTo(ADMIN.id)[0]?.match(/@\w+/g);
+    expect(usernames).toEqual(["@yusifaliyevpro", "@zaur_z", "@aysel_m", "@murad_k"]);
   });
 
   it("are ignored for everyone except the admin", async () => {

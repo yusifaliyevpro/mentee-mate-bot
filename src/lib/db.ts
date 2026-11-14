@@ -131,7 +131,7 @@ export function getMemberByUsername(db: D1Database, username: string): Promise<M
 }
 
 export async function listMembers(db: D1Database): Promise<Member[]> {
-  const { results } = await db.prepare("SELECT * FROM members ORDER BY role DESC, username").all<Member>();
+  const { results } = await db.prepare("SELECT * FROM members ORDER BY created_at, rowid").all<Member>();
   return results;
 }
 
