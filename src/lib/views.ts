@@ -29,7 +29,7 @@ export function settingsText(t: Messages, member: Member): string {
     "",
     `${t.settingTime}: ${formatMinutes(member.remind_at)}`,
     `${t.settingDays}: ${days}`,
-    `${t.settingMessage}: ${member.message ?? t.defaultMessage}`,
+    `${t.settingMessage}: ${member.message ?? t.defaultReminder}`,
     `${t.settingStatus}: ${member.paused ? t.pausedStatus : t.active}`,
   ].join("\n");
 }

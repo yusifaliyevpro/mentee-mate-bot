@@ -197,7 +197,7 @@ describe("/start", () => {
     expect(welcome?.text).toBe(az.welcome("Aysel"));
     expect(tip?.text).toBe(az.unmuteTip);
     expect(settings?.text).toBe(
-      `${az.settingsTitle}\n\n${az.settingTime}: 21:00\n${az.settingDays}: ${az.everyDay}\n${az.settingMessage}: ${az.defaultMessage}\n${az.settingStatus}: ${az.active}`,
+      `${az.settingsTitle}\n\n${az.settingTime}: 21:00\n${az.settingDays}: ${az.everyDay}\n${az.settingMessage}: ${az.defaultReminder}\n${az.settingStatus}: ${az.active}`,
     );
     expect(buttonData(settings?.reply_markup)).toEqual(["s:time", "s:days", "s:msg", "s:pause"]);
     expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(3);
@@ -680,7 +680,7 @@ describe("settings: reminder text", () => {
     await h.tap(AYSEL, "s:msgreset");
     expect(h.member(AYSEL)).toMatchObject({ message: null, awaiting: null });
     expect(h.telegram.answers().at(-1)).toBe(az.messageReset);
-    expect(h.lastEditText()).toContain(`${az.settingMessage}: ${az.defaultMessage}`);
+    expect(h.lastEditText()).toContain(`${az.settingMessage}: ${az.defaultReminder}`);
   });
 
   it("replies with a hint to random text", async () => {

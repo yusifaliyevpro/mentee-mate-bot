@@ -41,10 +41,15 @@ describe("reminderKeyboard", () => {
 });
 
 describe("settingsText", () => {
-  it("shows defaults", () => {
+  it("shows defaults, spelling out the default reminder text", () => {
     expect(settingsText(t, member())).toBe(
-      "⚙️ Your settings\n\n⏰ Time: 21:00\n📅 Days: every day\n💬 Message: default\nStatus: ▶️ active",
+      `⚙️ Your settings\n\n⏰ Time: 21:00\n📅 Days: every day\n💬 Message: ${t.defaultReminder}\nStatus: ▶️ active`,
     );
+  });
+
+  it("shows the default text in Azerbaijani too", () => {
+    expect(settingsText(messages.az, member())).toContain(`💬 Mətn: ${messages.az.defaultReminder}`);
+    expect(settingsText(messages.az, member())).not.toContain("standart");
   });
 
   it("lists selected days and custom text", () => {
