@@ -1,4 +1,7 @@
-# MenteeMateBot
+<h1>
+  <img src="assets/logo.svg" alt="" height="34" align="center" />
+  MenteeMateBot
+</h1>
 
 [![CI](https://github.com/yusifaliyevpro/mentee-mate-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/yusifaliyevpro/mentee-mate-bot/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-3fb950)](LICENSE)
