@@ -467,6 +467,86 @@ describe("settings: reminder time", () => {
   });
 });
 
+describe("settings: changing the time after today's reminder", () => {
+  beforeEach(async () => {
+    await h.onboard(AYSEL);
+    await h.tick("2026-11-14 21:00");
+    h.telegram.clear();
+  });
+
+  it("reminds again at a later time today when the day isn't done", async () => {
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1290");
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 21:45");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);
+    expect(h.day(AYSEL, "2026-11-14")?.reminded_at).toBe(seconds("2026-11-14 21:30"));
+  });
+
+  it("stays quiet when the day is already done", async () => {
+    await h.tap(AYSEL, "done:2026-11-14");
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1290");
+    h.telegram.clear();
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 23:59");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([]);
+  });
+
+  it("waits until tomorrow when the new time has already passed", async () => {
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1200");
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 22:00");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([]);
+    await h.tick("2026-11-15 20:00");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);
+  });
+
+  it("follows each change when the time is moved several times", async () => {
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1290");
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 21:35");
+    h.at("2026-11-14 21:35");
+    await h.tap(AYSEL, "s:t:1320");
+    await h.tickEveryMinute("2026-11-14 21:36", "2026-11-14 22:30");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder, az.defaultReminder]);
+  });
+
+  it("replaces a pending snooze with the new time", async () => {
+    h.at("2026-11-14 21:00");
+    await h.tap(AYSEL, "snooze:30:2026-11-14");
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1275");
+    h.telegram.clear();
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 21:45");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);
+    expect(h.day(AYSEL, "2026-11-14")).toMatchObject({ reminded_at: seconds("2026-11-14 21:15"), snooze_until: null });
+  });
+
+  it("keeps the 23:50 nudge an hour away from the rescheduled reminder", async () => {
+    h.at("2026-11-14 23:00");
+    await h.tap(AYSEL, "s:t:1410");
+    await h.tickEveryMinute("2026-11-14 23:00", "2026-11-15 00:30");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);
+  });
+
+  it("still nudges at 23:50 when the rescheduled reminder was over an hour earlier", async () => {
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1290");
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 23:59");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder, az.nudge]);
+  });
+
+  it("doesn't affect tomorrow's reminder at the new time", async () => {
+    h.at("2026-11-14 21:05");
+    await h.tap(AYSEL, "s:t:1290");
+    await h.tick("2026-11-14 21:30");
+    h.telegram.clear();
+    await h.tick("2026-11-15 21:00");
+    await h.tick("2026-11-15 21:30");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);
+    expect(h.day(AYSEL, "2026-11-15")?.reminded_at).toBe(seconds("2026-11-15 21:30"));
+  });
+});
+
 describe("settings: days", () => {
   beforeEach(async () => {
     await h.onboard(AYSEL);

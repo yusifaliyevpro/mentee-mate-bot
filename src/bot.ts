@@ -53,6 +53,20 @@ export function createBot(env: Env): Bot<BotContext> {
     await db.setDay(env.DB, tgId, day, { reminded_at: scheduled });
   };
 
+  // A later time today re-arms today's reminder (and replaces a pending snooze) unless the day is done.
+  const rescheduleToday = async (tgId: number, remindAt: number) => {
+    const at = now();
+    if (reminderTimePassed(remindAt, at, timeZone)) {
+      await skipPassedReminder(tgId, remindAt);
+      return;
+    }
+    const { day } = logicalDay(at, timeZone);
+    const existing = await db.getDay(env.DB, tgId, day);
+    if (existing?.reminded_at && !existing.done_at) {
+      await db.setDay(env.DB, tgId, day, { reminded_at: null, snooze_until: null });
+    }
+  };
+
   app.use(async (ctx, next) => {
     if (!ctx.from || ctx.chat?.type !== "private") return;
     const settings = await db.getSettings(env.DB);
@@ -277,7 +291,7 @@ export function createBot(env: Env): Bot<BotContext> {
       await ctx.answerCallbackQuery();
       return;
     }
-    await skipPassedReminder(ctx.userId, minutes);
+    await rescheduleToday(ctx.userId, minutes);
     await showSettings(ctx, await db.updateMember(env.DB, ctx.userId, { remind_at: minutes }));
   });
 
