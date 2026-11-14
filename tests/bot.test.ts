@@ -191,7 +191,7 @@ describe("username and name changes", () => {
 
 describe("/start", () => {
   it("welcomes a mentee, asks them to unmute, then shows the default settings last", async () => {
-    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/allow @aysel_m");
     await h.send(AYSEL, "/start");
     const [welcome, tip, settings] = h.telegram.messagesTo(AYSEL.id);
     expect(welcome?.text).toBe(az.welcome("Aysel"));
@@ -211,6 +211,56 @@ describe("/start", () => {
     expect(h.telegram.sentTo(MENTOR.id)).toEqual([az.mentorWelcome("Leyla"), az.mentorIntro, az.mentorUnmuteTip]);
   });
 
+  it("only shows the settings when a mentee presses Start again", async () => {
+    await h.onboard(AYSEL);
+    await h.tap(AYSEL, "s:t:1350");
+    await h.send(AYSEL, "/start");
+    const sent = h.telegram.messagesTo(AYSEL.id);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.text).toContain(`${az.settingTime}: 22:30`);
+    expect(buttonData(sent[0]?.reply_markup)).toEqual(["s:time", "s:days", "s:msg", "s:pause"]);
+  });
+
+  it("only explains the bot when the mentor presses Start again", async () => {
+    await h.onboardMentor();
+    await h.send(MENTOR, "/start");
+    expect(h.telegram.sentTo(MENTOR.id)).toEqual([az.mentorIntro]);
+  });
+
+  it("only shows the settings when the admin presses Start again", async () => {
+    await h.send(ADMIN, "/start");
+    h.telegram.clear();
+    await h.send(ADMIN, "/start");
+    const texts = h.telegram.sentTo(ADMIN.id);
+    expect(texts).toHaveLength(1);
+    expect(texts[0]).toContain(az.settingsTitle);
+  });
+
+  it("still welcomes someone whose first message wasn't /start", async () => {
+    await h.send(ADMIN, "/allow @aysel_m");
+    await h.send(AYSEL, "/help");
+    h.telegram.clear();
+    await h.send(AYSEL, "/start");
+    expect(h.telegram.sentTo(AYSEL.id).slice(0, 2)).toEqual([az.welcome("Aysel"), az.unmuteTip]);
+  });
+
+  it("welcomes a mentor again after they become a mentor", async () => {
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/mentor @aysel_m");
+    h.telegram.clear();
+    await h.send(AYSEL, "/start");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.mentorWelcome("Aysel"), az.mentorIntro, az.mentorUnmuteTip]);
+  });
+
+  it("welcomes someone again after being removed and re-added", async () => {
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/remove @aysel_m");
+    await h.send(ADMIN, "/allow @aysel_m");
+    h.telegram.clear();
+    await h.send(AYSEL, "/start");
+    expect(h.telegram.sentTo(AYSEL.id).slice(0, 2)).toEqual([az.welcome("Aysel"), az.unmuteTip]);
+  });
+
   it("gives the admin the same first messages as a mentee", async () => {
     await h.send(ADMIN, "/start");
     const texts = h.telegram.sentTo(ADMIN.id);
@@ -220,7 +270,7 @@ describe("/start", () => {
 
   it("sends the first messages in English when the bot is in English", async () => {
     await h.tap(ADMIN, "a:lang:en");
-    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/allow @aysel_m");
     await h.send(ADMIN, "/mentor @leyla_mentor");
     h.telegram.clear();
     await h.send(AYSEL, "/start");

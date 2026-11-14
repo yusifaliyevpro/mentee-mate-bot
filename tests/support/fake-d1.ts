@@ -34,13 +34,23 @@ class FakeStatement {
 /** A D1-compatible database backed by an in-memory SQLite, with the real migrations applied. */
 export class FakeD1 {
   readonly sqlite = new DatabaseSync(":memory:");
+  private readonly pending: string[];
 
-  constructor() {
-    for (const file of readdirSync(MIGRATIONS_DIR)
+  /** Applies all migrations, or only the first `upTo` so a test can seed data and then `migrate()`. */
+  constructor(upTo?: number) {
+    const files = readdirSync(MIGRATIONS_DIR)
       .filter((name) => name.endsWith(".sql"))
-      .toSorted()) {
-      this.sqlite.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
-    }
+      .toSorted();
+    this.pending = files.slice(upTo ?? files.length);
+    for (const file of files.slice(0, upTo ?? files.length)) this.apply(file);
+  }
+
+  migrate(): void {
+    for (const file of this.pending.splice(0)) this.apply(file);
+  }
+
+  private apply(file: string): void {
+    this.sqlite.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
   }
 
   prepare(sql: string): FakeStatement {

@@ -101,15 +101,20 @@ export function createBot(env: Env): Bot<BotContext> {
     const name = ctx.from?.first_name ?? "";
     if (ctx.isAdmin) await syncCommands(ctx.api, ctx.settings.lang, adminId);
     else await syncMemberCommands(ctx.api, ctx.settings.lang, ctx.member, adminId);
-    if (ctx.member.role === "mentor") {
-      await ctx.reply(ctx.t.mentorWelcome(name));
+    const { role } = ctx.member;
+    const firstTime = ctx.member.welcomed_role !== role;
+    if (role === "mentor") {
+      if (firstTime) await ctx.reply(ctx.t.mentorWelcome(name));
       await ctx.reply(ctx.t.mentorIntro);
-      await ctx.reply(ctx.t.mentorUnmuteTip);
-      return;
+      if (firstTime) await ctx.reply(ctx.t.mentorUnmuteTip);
+    } else {
+      if (firstTime) {
+        await ctx.reply(ctx.t.welcome(name));
+        await ctx.reply(ctx.t.unmuteTip);
+      }
+      await ctx.reply(...settingsMessage(ctx.t, ctx.member));
     }
-    await ctx.reply(ctx.t.welcome(name));
-    await ctx.reply(ctx.t.unmuteTip);
-    await ctx.reply(...settingsMessage(ctx.t, ctx.member));
+    if (firstTime) await db.updateMember(env.DB, ctx.userId, { welcomed_role: role });
   });
 
   app.command("help", (ctx) => {

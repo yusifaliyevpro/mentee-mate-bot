@@ -38,6 +38,7 @@ export function member(overrides: Partial<Member> = {}): Member {
     message: null,
     paused: 0,
     awaiting: null,
+    welcomed_role: null,
     ...overrides,
   };
 }

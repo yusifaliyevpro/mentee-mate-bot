@@ -55,6 +55,7 @@ tests/          vitest suites; tests/support/ has the fakes and harness
   - Mentee: welcome, unmute tip, then settings (settings last, so the keyboard sits at the bottom).
   - Mentor: welcome, an explanation of how the bot works (`mentorIntro`, also their `/help`), then the unmute tip.
   - The mentor is never told the summary mode.
+  - These only go out the first time, tracked per role in `welcomed_role`. A repeat `/start` shows just the settings (mentee) or `mentorIntro` (mentor). A role change welcomes them once in the new role.
 - **"/" menus:**
   - The default menu has the mentee commands.
   - The admin's chat adds the admin commands.
@@ -100,7 +101,7 @@ pnpm db:migrate    # apply migrations to the remote D1
 
 - **Comments:** short (one line, two at most), and only for the non-obvious _why_.
 - **No AI attribution** anywhere: commits, PRs or files.
-- **Migrations:** never edit an applied migration. Add a new numbered file in `migrations/`.
+- **Migrations:** never edit an applied migration. Add a new numbered file in `migrations/`, test any data backfill in `tests/migrations.test.ts` (`new FakeD1(n)` stops after `n` migrations, then `migrate()`), and run `pnpm db:migrate` before `pnpm wrangler deploy`.
 - **Error handling:** handlers are registered on `app = bot.errorBoundary(...)`, not on `bot`. In webhook mode an uncaught error makes Telegram retry the same update. Keep new handlers on `app` or its filters.
 - **Webhook secret:** `/webhook` checks Telegram's secret header itself, before grammY runs, because grammY would call `getMe` first.
 - **Callback data** must stay within Telegram's 64 bytes (a test enforces this).

@@ -15,6 +15,8 @@ export interface Member {
   message: string | null;
   paused: number;
   awaiting: string | null;
+  /** The role they were last welcomed as; a repeat /start skips the welcome while it matches. */
+  welcomed_role: Role | null;
 }
 
 export interface Settings {
@@ -25,7 +27,7 @@ export interface Settings {
 
 export type ReminderRow = ScheduleRow & { message: string | null };
 
-const MEMBER_FIELDS = ["remind_at", "weekdays", "message", "paused", "awaiting"] as const;
+const MEMBER_FIELDS = ["remind_at", "weekdays", "message", "paused", "awaiting", "welcomed_role"] as const;
 const DAY_FIELDS = ["reminded_at", "snooze_until", "nudged_at", "done_at"] as const;
 
 type MemberUpdate = Partial<Pick<Member, (typeof MEMBER_FIELDS)[number]>>;
