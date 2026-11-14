@@ -3,7 +3,7 @@ import { createBot } from "./bot";
 import { syncCommands } from "./commands";
 import { runTick } from "./cron";
 import type { Env } from "./env";
-import { getSettings } from "./lib/db";
+import { getSettings, mentorIds } from "./lib/db";
 
 let webhook: { token: string; handle: (request: Request) => Promise<Response> } | undefined;
 
@@ -23,7 +23,7 @@ async function setup(env: Env, origin: string): Promise<Response> {
   const url = `${origin}/webhook`;
   await api.setWebhook(url, { secret_token: env.WEBHOOK_SECRET, allowed_updates: ["message", "callback_query"] });
   const { lang } = await getSettings(env.DB);
-  await syncCommands(api, lang, Number(env.ADMIN_ID));
+  await syncCommands(api, lang, Number(env.ADMIN_ID), await mentorIds(env.DB));
   return Response.json({ ok: true, webhook: url });
 }
 

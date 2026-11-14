@@ -117,14 +117,17 @@ export async function allowMembers(db: D1Database, usernames: string[], role: Ro
   );
 }
 
-export async function removeMember(db: D1Database, username: string): Promise<boolean> {
+export async function removeMember(db: D1Database, username: string): Promise<{ tg_id: number | null } | null> {
   const removed = await db
     .prepare("DELETE FROM members WHERE username = ? RETURNING tg_id")
     .bind(username)
     .first<{ tg_id: number | null }>();
-  if (!removed) return false;
-  if (removed.tg_id !== null) await db.prepare("DELETE FROM days WHERE tg_id = ?").bind(removed.tg_id).run();
-  return true;
+  if (removed && removed.tg_id !== null) await db.prepare("DELETE FROM days WHERE tg_id = ?").bind(removed.tg_id).run();
+  return removed;
+}
+
+export function getMemberByUsername(db: D1Database, username: string): Promise<Member | null> {
+  return db.prepare("SELECT * FROM members WHERE username = ?").bind(username).first<Member>();
 }
 
 export async function listMembers(db: D1Database): Promise<Member[]> {

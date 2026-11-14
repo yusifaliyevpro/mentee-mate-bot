@@ -37,7 +37,7 @@ describe("access control", () => {
   it("lets an allowlisted user in and links their Telegram account", async () => {
     await h.send(ADMIN, "/allow @aysel_m");
     await h.send(AYSEL, "/start");
-    const [welcome, settings] = h.telegram.sentTo(AYSEL.id);
+    const [welcome, , settings] = h.telegram.sentTo(AYSEL.id);
     expect(welcome).toBe(az.welcome("Aysel"));
     expect(settings).toContain(az.settingsTitle);
     expect(h.member(AYSEL)).toMatchObject({ username: "aysel_m", tg_id: AYSEL.id, name: "Aysel", role: "mentee" });
@@ -190,20 +190,41 @@ describe("username and name changes", () => {
 });
 
 describe("/start", () => {
-  it("shows the default settings to a new mentee", async () => {
+  it("welcomes a mentee, asks them to unmute, then shows the default settings last", async () => {
     await h.onboard(AYSEL);
     await h.send(AYSEL, "/start");
-    const [, settings] = h.telegram.callsTo("sendMessage");
+    const [welcome, tip, settings] = h.telegram.messagesTo(AYSEL.id);
+    expect(welcome?.text).toBe(az.welcome("Aysel"));
+    expect(tip?.text).toBe(az.unmuteTip);
     expect(settings?.text).toBe(
       `${az.settingsTitle}\n\n${az.settingTime}: 21:00\n${az.settingDays}: ${az.everyDay}\n${az.settingMessage}: ${az.defaultMessage}\n${az.settingStatus}: ${az.active}`,
     );
     expect(buttonData(settings?.reply_markup)).toEqual(["s:time", "s:days", "s:msg", "s:pause"]);
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(3);
   });
 
-  it("greets the mentor without settings", async () => {
+  it("welcomes the mentor, explains what to expect, and asks them to unmute", async () => {
     await h.send(ADMIN, "/mentor @leyla_mentor");
     await h.send(MENTOR, "/start");
-    expect(h.telegram.sentTo(MENTOR.id)).toEqual([az.mentorWelcome("Leyla")]);
+    expect(h.telegram.sentTo(MENTOR.id)).toEqual([az.mentorWelcome("Leyla"), az.mentorIntro, az.mentorUnmuteTip]);
+  });
+
+  it("gives the admin the same first messages as a mentee", async () => {
+    await h.send(ADMIN, "/start");
+    const texts = h.telegram.sentTo(ADMIN.id);
+    expect(texts.slice(0, 2)).toEqual([az.welcome("Yusif"), az.unmuteTip]);
+    expect(texts[2]).toContain(az.settingsTitle);
+  });
+
+  it("sends the first messages in English when the bot is in English", async () => {
+    await h.tap(ADMIN, "a:lang:en");
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/mentor @leyla_mentor");
+    h.telegram.clear();
+    await h.send(AYSEL, "/start");
+    await h.send(MENTOR, "/start");
+    expect(h.telegram.sentTo(AYSEL.id).slice(0, 2)).toEqual([en.welcome("Aysel"), en.unmuteTip]);
+    expect(h.telegram.sentTo(MENTOR.id)).toEqual([en.mentorWelcome("Leyla"), en.mentorIntro, en.mentorUnmuteTip]);
   });
 
   it("sets the command menus when the admin starts the bot", async () => {
@@ -212,10 +233,11 @@ describe("/start", () => {
     expect(scopes).toEqual([undefined, { type: "chat", chat_id: ADMIN.id }]);
   });
 
-  it("doesn't touch command menus for other users", async () => {
+  it("resets a mentee's chat to the default menu", async () => {
     await h.onboard(AYSEL);
     await h.send(AYSEL, "/start");
     expect(h.telegram.callsTo("setMyCommands")).toEqual([]);
+    expect(h.telegram.callsTo("deleteMyCommands")).toEqual([{ scope: { type: "chat", chat_id: AYSEL.id } }]);
   });
 
   it("doesn't send a late reminder to someone who registers after their reminder time", async () => {
@@ -819,6 +841,103 @@ describe("snooze", () => {
     await h.tap(AYSEL, "snooze:600:2026-11-14");
     await h.tap(AYSEL, "snooze:0:2026-11-14");
     expect(h.db.query("SELECT * FROM days")).toEqual([]);
+  });
+});
+
+const mentorMenu = (lang: "az" | "en" = "az") => ({
+  commands: [
+    { command: "start", description: messages[lang].commands.start },
+    { command: "help", description: messages[lang].commands.help },
+  ],
+  scope: { type: "chat", chat_id: MENTOR.id },
+});
+
+describe("mentor help and menus", () => {
+  it("/help explains the mentor's side without revealing the summary mode", async () => {
+    await h.tap(ADMIN, "a:digest:names");
+    await h.onboardMentor();
+    await h.send(MENTOR, "/help");
+    const [help] = h.telegram.sentTo(MENTOR.id);
+    expect(help).toBe(az.mentorIntro);
+    for (const mode of Object.values(az.digestModes)) expect(help).not.toContain(mode);
+  });
+
+  it("points the mentor to /help from anything else", async () => {
+    await h.onboardMentor();
+    await h.send(MENTOR, "/settings");
+    expect(h.telegram.sentTo(MENTOR.id)[0]).toContain("/help");
+  });
+
+  it("gives the mentor a menu with only /start and /help", async () => {
+    await h.send(ADMIN, "/mentor @leyla_mentor");
+    await h.send(MENTOR, "/start");
+    expect(h.telegram.callsTo("setMyCommands")).toContainEqual(mentorMenu());
+  });
+
+  it("sets the mentor menu right away when an existing mentee becomes the mentor", async () => {
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/mentor @aysel_m");
+    expect(h.telegram.callsTo("setMyCommands")).toContainEqual({
+      ...mentorMenu(),
+      scope: { type: "chat", chat_id: AYSEL.id },
+    });
+  });
+
+  it("restores the default menu when the mentor is made a mentee again", async () => {
+    await h.onboardMentor();
+    await h.send(ADMIN, "/allow @leyla_mentor");
+    expect(h.memberByUsername("leyla_mentor")?.role).toBe("mentee");
+    expect(h.telegram.callsTo("deleteMyCommands")).toEqual([{ scope: { type: "chat", chat_id: MENTOR.id } }]);
+  });
+
+  it("restores the default menu when the mentor is removed", async () => {
+    await h.onboardMentor();
+    await h.send(ADMIN, "/remove @leyla_mentor");
+    expect(h.telegram.callsTo("deleteMyCommands")).toEqual([{ scope: { type: "chat", chat_id: MENTOR.id } }]);
+  });
+
+  it("doesn't touch menus for someone who hasn't pressed Start yet", async () => {
+    await h.send(ADMIN, "/mentor @leyla_mentor");
+    await h.send(ADMIN, "/allow @leyla_mentor");
+    await h.send(ADMIN, "/remove @leyla_mentor");
+    expect(h.telegram.callsTo("setMyCommands")).toEqual([]);
+    expect(h.telegram.callsTo("deleteMyCommands")).toEqual([]);
+  });
+
+  it("translates the mentor menu when the bot language changes", async () => {
+    await h.onboardMentor();
+    await h.tap(ADMIN, "a:lang:en");
+    expect(h.telegram.callsTo("setMyCommands")).toContainEqual(mentorMenu("en"));
+  });
+
+  it("updates the menu when a role changes through a username merge", async () => {
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/mentor @aysel_new");
+    h.telegram.clear();
+    await h.send({ ...AYSEL, username: "aysel_new" }, "/help");
+    expect(h.telegram.callsTo("setMyCommands")).toContainEqual({
+      ...mentorMenu(),
+      scope: { type: "chat", chat_id: AYSEL.id },
+    });
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.mentorIntro]);
+  });
+
+  it("keeps working if Telegram refuses a menu update", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    h.telegram.failWhen("setMyCommands", () => ({ error_code: 400, description: "Bad Request: chat not found" }));
+    await h.send(ADMIN, "/mentor @leyla_mentor");
+    await h.send(MENTOR, "/start");
+    expect(h.telegram.sentTo(MENTOR.id)).toEqual([az.mentorWelcome("Leyla"), az.mentorIntro, az.mentorUnmuteTip]);
+  });
+
+  it("never gives the admin a mentor menu, even as the mentor", async () => {
+    await h.send(ADMIN, "/start");
+    await h.send(ADMIN, "/mentor @yusifaliyevpro");
+    h.telegram.clear();
+    await h.send(ADMIN, "/start");
+    const scopes = h.telegram.callsTo("setMyCommands").map((payload) => payload.scope);
+    expect(scopes).toEqual([undefined, { type: "chat", chat_id: ADMIN.id }]);
+    expect(h.telegram.callsTo("deleteMyCommands")).toEqual([]);
   });
 });
 

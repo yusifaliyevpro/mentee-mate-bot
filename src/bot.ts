@@ -1,5 +1,5 @@
 import { Bot, type Context } from "grammy";
-import { syncCommands } from "./commands";
+import { syncCommands, syncMemberCommands } from "./commands";
 import type { Env } from "./env";
 import * as db from "./lib/db";
 import { isDigestMode } from "./lib/digest";
@@ -83,7 +83,9 @@ export function createBot(env: Env): Bot<BotContext> {
       }
       if (member) await skipPassedReminder(ctx.from.id, member.remind_at);
     } else {
+      const previousRole = member.role;
       member = await db.syncProfile(env.DB, member, ctx.from.username, ctx.from.first_name);
+      if (member.role !== previousRole) await syncMemberCommands(ctx.api, settings.lang, member, adminId);
     }
     if (!member) {
       const notice = t.notAllowed(ctx.from.username);
@@ -99,15 +101,30 @@ export function createBot(env: Env): Bot<BotContext> {
   app.command("start", async (ctx) => {
     const name = ctx.from?.first_name ?? "";
     if (ctx.isAdmin) await syncCommands(ctx.api, ctx.settings.lang, adminId);
+    else await syncMemberCommands(ctx.api, ctx.settings.lang, ctx.member, adminId);
     if (ctx.member.role === "mentor") {
       await ctx.reply(ctx.t.mentorWelcome(name));
+      await ctx.reply(ctx.t.mentorIntro);
+      await ctx.reply(ctx.t.mentorUnmuteTip);
       return;
     }
     await ctx.reply(ctx.t.welcome(name));
+    await ctx.reply(ctx.t.unmuteTip);
     await ctx.reply(settingsText(ctx.t, ctx.member), { reply_markup: settingsKeyboard(ctx.t, ctx.member) });
   });
 
-  app.command("help", (ctx) => ctx.reply(ctx.isAdmin ? `${ctx.t.help}\n\n${ctx.t.adminHelp}` : ctx.t.help));
+  app.command("help", (ctx) => {
+    if (ctx.member.role === "mentor") return ctx.reply(ctx.t.mentorIntro);
+    return ctx.reply(ctx.isAdmin ? `${ctx.t.help}\n\n${ctx.t.adminHelp}` : ctx.t.help);
+  });
+
+  // Keeps a linked member's "/" menu in step with their role after the admin changes it.
+  const refreshMenus = async (ctx: BotContext, usernames: string[]) => {
+    for (const username of usernames) {
+      const member = await db.getMemberByUsername(env.DB, username);
+      if (member) await syncMemberCommands(ctx.api, ctx.settings.lang, member, adminId);
+    }
+  };
 
   // Admin
   const admin = app.filter((ctx) => ctx.isAdmin);
@@ -129,7 +146,7 @@ export function createBot(env: Env): Bot<BotContext> {
       return;
     }
     await db.setSetting(env.DB, "lang", lang);
-    await syncCommands(ctx.api, lang, adminId);
+    await syncCommands(ctx.api, lang, adminId, await db.mentorIds(env.DB));
     await ctx.answerCallbackQuery();
     await showAdmin(ctx, { ...ctx.settings, lang }, true);
   });
@@ -156,6 +173,7 @@ export function createBot(env: Env): Bot<BotContext> {
     }
     const valid = usernames.filter((username): username is string => username !== null);
     await db.allowMembers(env.DB, valid, "mentee");
+    await refreshMenus(ctx, valid);
     await ctx.reply(ctx.t.allowed(valid.map((username) => `@${username}`)));
   });
 
@@ -166,6 +184,7 @@ export function createBot(env: Env): Bot<BotContext> {
       return;
     }
     await db.allowMembers(env.DB, [username], "mentor");
+    await refreshMenus(ctx, [username]);
     await ctx.reply(ctx.t.mentorSet(`@${username}`));
   });
 
@@ -176,6 +195,9 @@ export function createBot(env: Env): Bot<BotContext> {
       return;
     }
     const removed = await db.removeMember(env.DB, username);
+    // Drop a removed mentor's own menu so they're back to the default one.
+    if (removed)
+      await syncMemberCommands(ctx.api, ctx.settings.lang, { tg_id: removed.tg_id, role: "mentee" }, adminId);
     await ctx.reply(removed ? ctx.t.removed(`@${username}`) : ctx.t.notFound(`@${username}`));
   });
 

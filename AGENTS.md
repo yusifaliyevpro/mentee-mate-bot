@@ -50,7 +50,16 @@ tests/          vitest suites; tests/support/ has the fakes and harness
   - The admin is identified by numeric `ADMIN_ID` and auto-registered as a mentee.
   - Everyone else needs an allowlisted username (`/allow`).
   - The first Start links the entry to the user's Telegram ID. After that, users are matched by ID, and username and name changes are synced on every update.
-- **Roles:** `mentee` gets reminders. `mentor` gets only the summary.
+- **Roles:** `mentee` gets reminders. `mentor` gets only the summary. `/mentor @x` allowlists and sets the role in one step.
+- **First messages on /start:**
+  - Mentee: welcome, unmute tip, then settings (settings last, so the keyboard sits at the bottom).
+  - Mentor: welcome, an explanation of how the bot works (`mentorIntro`, also their `/help`), then the unmute tip.
+  - The mentor is never told the summary mode.
+- **"/" menus:**
+  - The default menu has the mentee commands.
+  - The admin's chat adds the admin commands.
+  - Each mentor's chat has only `/start` and `/help`.
+  - Per-chat menus are stored by Telegram, so `commands.ts` must re-sync them whenever a role changes (`/mentor`, `/allow`, `/remove`, a username merge) or the language changes.
 - **Language:** one global setting (`az` default, or `en`), chosen by the admin. Every string must exist in both languages in `i18n.ts`. Azerbaijani addresses mentees informally (`sən`).
 
 ## Commands

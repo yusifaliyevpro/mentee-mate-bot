@@ -12,7 +12,14 @@ const en = {
   welcome: (name: string) =>
     `Hi ${name}! 👋\n\nI'll remind you every day to write down your thoughts. Pick the time and days that suit you below. You can change them anytime with /settings.`,
   mentorWelcome: (name: string) => `Hi ${name}! 👋 You're all set.`,
-  mentorNoSettings: "Reminders are only for mentees, so there's nothing to set up here.",
+  mentorIntro:
+    "Here's how it works:\n\n• Each mentee gets a daily reminder, at a time they choose, to spend 5–10 minutes writing their notes. They tap ✅ Done when they've written.\n• A day lasts until 04:00, so notes written after midnight still count.\n• When the admin enables it, you'll get a short summary here every morning at 10:00 about the previous day.\n\nThere's nothing you need to set up. Send /help anytime to see this again.",
+  mentorNoSettings:
+    "Reminders are only for mentees, so there's nothing to set up here. Send /help to see how it works.",
+  unmuteTip:
+    "🔔 Important: if this chat is muted, unmute it (tap ⋮ or the bot's name at the top → Unmute) so my messages reach you even when Telegram is closed.",
+  mentorUnmuteTip:
+    "🔔 Important: if this chat is muted, unmute it (tap ⋮ or the bot's name at the top → Unmute) so my messages reach you even when Telegram is closed.",
   help: "📝 I send you a daily reminder to write your notes.\n\n/settings: reminder time, days and text\n/done: mark today as written\n/pause: pause reminders\n/resume: resume reminders\n\nA day lasts until 04:00, so writing after midnight still counts.",
   unknown: "Use /settings to change your reminders or /help to see what I can do.",
 
@@ -110,7 +117,14 @@ const az: Messages = {
   welcome: (name) =>
     `Salam, ${name}! 👋\n\nHər gün sənə düşüncələrini yazmağı xatırladacağam. Aşağıdan sənə uyğun saatı və günləri seç. İstənilən vaxt /settings ilə dəyişə bilərsən.`,
   mentorWelcome: (name) => `Salam, ${name}! 👋 Hər şey hazırdır.`,
-  mentorNoSettings: "Xatırlatmalar yalnız mentilər üçündür, burada tənzimləməli bir şey yoxdur.",
+  mentorIntro:
+    "Bot belə işləyir:\n\n• Hər menti öz seçdiyi saatda 5–10 dəqiqə ayırıb qeydlərini yazmaq üçün gündəlik xatırlatma alır. Yazdıqdan sonra ✅ Yazdım düyməsinə basır.\n• Gün saat 04:00-a qədər davam edir, yəni gecə yarısından sonra yazılan qeydlər də sayılır.\n• Admin aktiv etdikdə, hər səhər saat 10:00-da burada ötən gün haqqında qısa hesabat alacaqsınız.\n\nSizin heç nə tənzimləməyinizə ehtiyac yoxdur. Bunu yenidən görmək üçün istənilən vaxt /help göndərin.",
+  mentorNoSettings:
+    "Xatırlatmalar yalnız mentilər üçündür, burada tənzimləməli bir şey yoxdur. Necə işlədiyini görmək üçün /help göndərin.",
+  unmuteTip:
+    "🔔 Vacib: bu söhbət səssizdirsə, səsini aç (yuxarıda ⋮ və ya botun adına toxun → Səsi aç), ki, Telegram bağlı olanda da mesajlarım sənə çatsın.",
+  mentorUnmuteTip:
+    "🔔 Vacib: bu söhbət səssizdirsə, səsini açın (yuxarıda ⋮ və ya botun adına toxunun → Səsi aç), ki, Telegram bağlı olanda da mesajlarım sizə çatsın.",
   help: "📝 Hər gün sənə qeydlərini yazmağı xatırladıram.\n\n/settings: xatırlatma saatı, günləri və mətni\n/done: bu günü yazılmış kimi qeyd et\n/pause: xatırlatmaları dayandır\n/resume: xatırlatmaları bərpa et\n\nGün saat 04:00-a qədər davam edir, yəni gecə yarısından sonra yazsan da sayılır.",
   unknown: "Xatırlatmaları dəyişmək üçün /settings, nə edə bildiyimi görmək üçün /help yaz.",
 
