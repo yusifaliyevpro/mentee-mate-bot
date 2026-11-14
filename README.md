@@ -12,11 +12,12 @@ Built for mentorship groups (like ours at Elachi) where the mentor asks everyone
 
 ## Features
 
-- **Personal reminders.** Each mentee picks their own time, which weekdays to get reminders on, and the reminder text.
-- **One tap to mark done.** Reminders come with **✅ Done**, **⏰ 30 min** and **⏰ 1 hour** buttons.
+- **Personal reminders.** Each mentee picks their own time (06:00–23:45, in 15-minute steps), which weekdays to get reminders on, and the reminder text.
+- **One tap to mark done.** Reminders come with **✅ Done**, **⏰ 30 min** and **⏰ 1 hour** buttons. `/done` marks the day before the reminder even arrives.
 - **Late-night friendly.** A day runs from 04:00 to 04:00, so notes written after midnight still count.
 - **23:50 nudge.** Mentees who haven't tapped Done get a gentle "you have until 04:00" message.
-- **Mentor summary at 10:00.** Covers the previous day. The admin chooses whether it is off, shows counts only, or lists names. Mentees who had a day off are shown as 💤.
+- **Flexible.** Moving the reminder to later today re-arms today's reminder, and a time that has already passed starts tomorrow.
+- **Mentor summary at 10:00.** Covers the previous day. The admin chooses whether it's off, shows counts only, or lists names, and the mentor is never told which. Mentees who had a day off are shown as 💤.
 - **Private.** Only usernames on the admin's allowlist can use the bot.
 - **Azerbaijani and English.** The admin picks the language for the whole bot.
 - **No website, no login.** Everything happens in Telegram, with inline buttons.
@@ -32,26 +33,31 @@ The bot runs on [Cloudflare Workers](https://workers.dev) (free plan) with [gram
 
 ### Mentees
 
-| Command     | What it does                               |
-| ----------- | ------------------------------------------ |
-| `/start`    | Register and open settings                 |
-| `/settings` | Change reminder time, days and text        |
-| `/done`     | Mark today as written (no reminder needed) |
-| `/pause`    | Pause reminders (vacation, exams…)         |
-| `/resume`   | Turn reminders back on                     |
-| `/help`     | How it works                               |
+| Command     | What it does                                                    |
+| ----------- | --------------------------------------------------------------- |
+| `/start`    | First time: welcome and settings. After that: just the settings |
+| `/settings` | Change reminder time, days and text                             |
+| `/done`     | Mark today as written (no reminder needed)                      |
+| `/pause`    | Pause reminders (vacation, exams…)                              |
+| `/resume`   | Turn reminders back on                                          |
+| `/cancel`   | Stop editing the reminder text without changing it              |
+| `/help`     | How it works                                                    |
+
+### Mentor
+
+The mentor doesn't get reminders, so their "/" menu only has `/start` and `/help`. On the first `/start` they get a welcome and an explanation of how the bot works. `/help` repeats that explanation. They receive the morning summary when the admin turns it on.
 
 ### Admin
 
-The admin is the Telegram user whose numeric ID is set in `ADMIN_ID`. These commands only work for the admin and only show up in the admin's "/" menu.
+The admin is the Telegram user whose numeric ID is set in `ADMIN_ID`. They're registered as a mentee automatically, so they get reminders too. These commands only work for the admin and only show up in the admin's "/" menu.
 
-| Command                  | What it does                                        |
-| ------------------------ | --------------------------------------------------- |
-| `/admin`                 | Bot language and mentor summary mode                |
-| `/allow @user1 @user2 …` | Add mentees to the allowlist                        |
-| `/mentor @user`          | Set the mentor (they get the summary, no reminders) |
-| `/remove @user`          | Remove someone and their history                    |
-| `/members`               | List everyone and whether they've started the bot   |
+| Command                  | What it does                                                     |
+| ------------------------ | ---------------------------------------------------------------- |
+| `/admin`                 | Bot language and mentor summary mode                             |
+| `/allow @user1 @user2 …` | Add mentees to the allowlist (also turns a mentor back into one) |
+| `/mentor @user`          | Set the mentor, adding them to the allowlist if needed           |
+| `/remove @user`          | Remove someone and their history                                 |
+| `/members`               | List everyone in the order they were added, and their status     |
 
 The allowlist uses usernames, but pressing **Start** links each person to their Telegram account. After that, username and name changes are picked up automatically. Someone who changes their username _before_ pressing Start is told their current username, so they can send it to the admin to add.
 
@@ -96,14 +102,30 @@ You need a Telegram account, a free [Cloudflare](https://dash.cloudflare.com/sig
    curl -X POST https://mentee-mate-bot.<your-subdomain>.workers.dev/setup -H "x-setup-secret: <WEBHOOK_SECRET>"
    ```
 
-8. **Open the bot in Telegram and press Start.** Then:
+8. **Give the bot a face (optional).** In @BotFather:
+   - `/setuserpic`: send [`assets/avatar.png`](assets/avatar.png) as a photo.
+   - `/setabouttext`: a one-line tagline for the bot's profile.
+   - `/setdescription`: what people see in the empty chat before they press Start.
+
+9. **Open the bot in Telegram and press Start.** Then:
    - add mentees with `/allow @username …`
    - set the mentor with `/mentor @username`
    - choose a language and summary mode in `/admin`
 
-   Ask everyone to open the bot and press **Start** once.
+   Share `https://t.me/<your_bot_username>` and ask everyone to press **Start** once.
 
 Timezone defaults to `Asia/Baku`. Change `TIMEZONE` in `wrangler.jsonc` to any [IANA timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+
+### Updating
+
+After pulling new changes, apply any new migrations first, then deploy:
+
+```bash
+pnpm db:migrate
+pnpm wrangler deploy
+```
+
+Use `pnpm wrangler deploy`, not `pnpm deploy`, which is a different, built-in pnpm command.
 
 ## Development
 
