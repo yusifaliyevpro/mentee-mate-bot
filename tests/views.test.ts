@@ -9,7 +9,7 @@ import {
   isPickerTime,
   membersText,
   reminderKeyboard,
-  settingsText,
+  settingsView,
 } from "../src/lib/views";
 import { member } from "./helpers";
 
@@ -40,16 +40,32 @@ describe("reminderKeyboard", () => {
   });
 });
 
-describe("settingsText", () => {
-  it("shows defaults, spelling out the default reminder text", () => {
-    expect(settingsText(t, member())).toBe(
-      `⚙️ Your settings\n\n⏰ Time: 21:00\n📅 Days: every day\n💬 Message: ${t.defaultReminder}\nStatus: ▶️ active`,
+const quoted = (view: ReturnType<typeof settingsView>) => {
+  const [entity] = view.entities;
+  return entity ? view.text.slice(entity.offset, entity.offset + entity.length) : undefined;
+};
+
+describe("settingsView", () => {
+  it("shows defaults, with the reminder text last, spelled out", () => {
+    expect(settingsView(t, member()).text).toBe(
+      `⚙️ Your settings\n\n⏰ Time: 21:00\n📅 Days: every day\nStatus: ▶️ active\n💬 Message:\n${t.defaultReminder}`,
     );
+  });
+
+  it("puts the reminder text in an expandable quote, so long texts collapse", () => {
+    const view = settingsView(t, member());
+    expect(view.entities).toEqual([expect.objectContaining({ type: "expandable_blockquote" })]);
+    expect(quoted(view)).toBe(t.defaultReminder);
+  });
+
+  it("quotes exactly the custom text, even with emoji and line breaks", () => {
+    const message = "Yaz! ✍️🔥\nİkinci sətir <b>&</b>";
+    expect(quoted(settingsView(messages.az, member({ message })))).toBe(message);
   });
 
   it("numbers the days in Azerbaijani, as people usually say them", () => {
     expect(messages.az.weekdays).toEqual(["1", "2", "3", "4", "5", "6", "7"]);
-    expect(settingsText(messages.az, member({ weekdays: 0b001_0101 }))).toContain("📅 Günlər: 1, 3, 5");
+    expect(settingsView(messages.az, member({ weekdays: 0b001_0101 })).text).toContain("📅 Günlər: 1, 3, 5");
     expect(
       daysKeyboard(messages.az, 0b000_0001)
         .inline_keyboard.flat()
@@ -64,14 +80,14 @@ describe("settingsText", () => {
   });
 
   it("shows the default text in Azerbaijani too", () => {
-    expect(settingsText(messages.az, member())).toContain(`💬 Mətn: ${messages.az.defaultReminder}`);
-    expect(settingsText(messages.az, member())).not.toContain("standart");
+    expect(settingsView(messages.az, member()).text).toContain(`💬 Mətn:\n${messages.az.defaultReminder}`);
+    expect(settingsView(messages.az, member()).text).not.toContain("standart");
   });
 
   it("lists selected days and custom text", () => {
-    const text = settingsText(t, member({ weekdays: 0b000_0101, message: "Write!", paused: 1 }));
+    const { text } = settingsView(t, member({ weekdays: 0b000_0101, message: "Write!", paused: 1 }));
     expect(text).toContain("📅 Days: Mon, Wed");
-    expect(text).toContain("💬 Message: Write!");
+    expect(text).toContain("💬 Message:\nWrite!");
     expect(text).toContain("⏸ paused");
   });
 });

@@ -197,8 +197,10 @@ describe("/start", () => {
     expect(welcome?.text).toBe(az.welcome("Aysel"));
     expect(tip?.text).toBe(az.unmuteTip);
     expect(settings?.text).toBe(
-      `${az.settingsTitle}\n\n${az.settingTime}: 21:00\n${az.settingDays}: ${az.everyDay}\n${az.settingMessage}: ${az.defaultReminder}\n${az.settingStatus}: ${az.active}`,
+      `${az.settingsTitle}\n\n${az.settingTime}: 21:00\n${az.settingDays}: ${az.everyDay}\n${az.settingStatus}: ${az.active}\n${az.settingMessage}:\n${az.defaultReminder}`,
     );
+    expect(settings?.entities).toEqual([expect.objectContaining({ type: "expandable_blockquote" })]);
+    expect(settings?.parse_mode).toBeUndefined();
     expect(buttonData(settings?.reply_markup)).toEqual(["s:time", "s:days", "s:msg", "s:pause"]);
     expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(3);
   });
@@ -630,7 +632,7 @@ describe("settings: reminder text", () => {
     expect(h.member(AYSEL)).toMatchObject({ message: "Yaz, Aysel! ✍️", awaiting: null });
     const [saved, settings] = h.telegram.sentTo(AYSEL.id);
     expect(saved).toBe(az.messageSaved);
-    expect(settings).toContain(`${az.settingMessage}: Yaz, Aysel! ✍️`);
+    expect(settings).toContain(`${az.settingMessage}:\nYaz, Aysel! ✍️`);
 
     await h.tick("2026-11-14 21:00");
     expect(h.telegram.sentTo(AYSEL.id).at(-1)).toBe("Yaz, Aysel! ✍️");
@@ -680,7 +682,8 @@ describe("settings: reminder text", () => {
     await h.tap(AYSEL, "s:msgreset");
     expect(h.member(AYSEL)).toMatchObject({ message: null, awaiting: null });
     expect(h.telegram.answers().at(-1)).toBe(az.messageReset);
-    expect(h.lastEditText()).toContain(`${az.settingMessage}: ${az.defaultReminder}`);
+    expect(h.lastEditText()).toContain(`${az.settingMessage}:\n${az.defaultReminder}`);
+    expect(h.telegram.lastEdit()?.entities).toEqual([expect.objectContaining({ type: "expandable_blockquote" })]);
   });
 
   it("replies with a hint to random text", async () => {

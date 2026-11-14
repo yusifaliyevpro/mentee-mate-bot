@@ -18,8 +18,7 @@ import {
   membersText,
   messageKeyboard,
   minutesKeyboard,
-  settingsKeyboard,
-  settingsText,
+  settingsMessage,
 } from "./lib/views";
 
 export interface BotContext extends Context {
@@ -110,7 +109,7 @@ export function createBot(env: Env): Bot<BotContext> {
     }
     await ctx.reply(ctx.t.welcome(name));
     await ctx.reply(ctx.t.unmuteTip);
-    await ctx.reply(settingsText(ctx.t, ctx.member), { reply_markup: settingsKeyboard(ctx.t, ctx.member) });
+    await ctx.reply(...settingsMessage(ctx.t, ctx.member));
   });
 
   app.command("help", (ctx) => {
@@ -209,7 +208,7 @@ export function createBot(env: Env): Bot<BotContext> {
   const showSettings = async (ctx: BotContext, member: db.Member) => {
     if (member.awaiting) member = await db.updateMember(env.DB, ctx.userId, { awaiting: null });
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(settingsText(ctx.t, member), { reply_markup: settingsKeyboard(ctx.t, member) });
+    await ctx.editMessageText(...settingsMessage(ctx.t, member));
   };
 
   const markDone = async (ctx: BotContext, day: string, at: Date): Promise<"done" | "already"> => {
@@ -219,9 +218,7 @@ export function createBot(env: Env): Bot<BotContext> {
     return "done";
   };
 
-  mentee.command("settings", (ctx) =>
-    ctx.reply(settingsText(ctx.t, ctx.member), { reply_markup: settingsKeyboard(ctx.t, ctx.member) }),
-  );
+  mentee.command("settings", (ctx) => ctx.reply(...settingsMessage(ctx.t, ctx.member)));
 
   mentee.command("done", async (ctx) => {
     const at = now();
@@ -338,7 +335,7 @@ export function createBot(env: Env): Bot<BotContext> {
   mentee.callbackQuery("s:msgreset", async (ctx) => {
     const member = await db.updateMember(env.DB, ctx.userId, { message: null, awaiting: null });
     await ctx.answerCallbackQuery(ctx.t.messageReset);
-    await ctx.editMessageText(settingsText(ctx.t, member), { reply_markup: settingsKeyboard(ctx.t, member) });
+    await ctx.editMessageText(...settingsMessage(ctx.t, member));
   });
 
   mentee.callbackQuery(/^s:(pause|resume)$/, async (ctx) => {
@@ -358,7 +355,7 @@ export function createBot(env: Env): Bot<BotContext> {
     }
     const member = await db.updateMember(env.DB, ctx.userId, { message: text, awaiting: null });
     await ctx.reply(ctx.t.messageSaved);
-    await ctx.reply(settingsText(ctx.t, member), { reply_markup: settingsKeyboard(ctx.t, member) });
+    await ctx.reply(...settingsMessage(ctx.t, member));
   });
 
   app.on("message", (ctx) => ctx.reply(ctx.member.role === "mentor" ? ctx.t.mentorNoSettings : ctx.t.unknown));

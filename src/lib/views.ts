@@ -1,4 +1,5 @@
 import { InlineKeyboard } from "grammy";
+import type { MessageEntity } from "grammy/types";
 import type { Member, Settings } from "./db";
 import { DIGEST_MODES } from "./digest";
 import { LANGS, LANG_NAMES, type Messages } from "./i18n";
@@ -17,21 +18,43 @@ export function reminderKeyboard(t: Messages, day: string): InlineKeyboard {
   return keyboard;
 }
 
-export function settingsText(t: Messages, member: Member): string {
+export interface SettingsView {
+  text: string;
+  entities: MessageEntity[];
+}
+
+/** The reminder text goes last, in an expandable quote, so a long one collapses instead of burying the rest. */
+export function settingsView(t: Messages, member: Member): SettingsView {
   const days =
     member.weekdays === ALL_DAYS
       ? t.everyDay
       : member.weekdays === 0
         ? t.noDays
         : t.weekdays.filter((_, i) => isActiveDay(member.weekdays, i)).join(", ");
-  return [
+  const head = [
     t.settingsTitle,
     "",
     `${t.settingTime}: ${formatMinutes(member.remind_at)}`,
     `${t.settingDays}: ${days}`,
-    `${t.settingMessage}: ${member.message ?? t.defaultReminder}`,
     `${t.settingStatus}: ${member.paused ? t.pausedStatus : t.active}`,
+    `${t.settingMessage}:`,
+    "",
   ].join("\n");
+  const message = member.message ?? t.defaultReminder;
+  // Entity offsets are in UTF-16 code units, which is what String#length counts.
+  return {
+    text: head + message,
+    entities: [{ type: "expandable_blockquote", offset: head.length, length: message.length }],
+  };
+}
+
+/** Arguments for ctx.reply / ctx.editMessageText that show the settings with their keyboard. */
+export function settingsMessage(
+  t: Messages,
+  member: Member,
+): [string, { entities: MessageEntity[]; reply_markup: InlineKeyboard }] {
+  const { text, entities } = settingsView(t, member);
+  return [text, { entities, reply_markup: settingsKeyboard(t, member) }];
 }
 
 export function settingsKeyboard(t: Messages, member: Member): InlineKeyboard {
