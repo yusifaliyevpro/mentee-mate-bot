@@ -68,10 +68,13 @@ export function createBot(env: Env): Bot<BotContext> {
         member = await db.claimMember(env.DB, username, ctx.from.id, ctx.from.first_name);
       }
       if (member) await skipPassedReminder(ctx.from.id, member.remind_at);
+    } else {
+      member = await db.syncProfile(env.DB, member, ctx.from.username, ctx.from.first_name);
     }
     if (!member) {
-      if (ctx.callbackQuery) await ctx.answerCallbackQuery(t.notAllowed);
-      else await ctx.reply(t.notAllowed);
+      const notice = t.notAllowed(ctx.from.username);
+      if (ctx.callbackQuery) await ctx.answerCallbackQuery(notice);
+      else await ctx.reply(notice);
       return;
     }
 

@@ -58,6 +58,43 @@ export function upsertAdmin(db: D1Database, username: string, tgId: number, name
     .first<Member>();
 }
 
+/**
+ * Keeps the stored username and name in step with Telegram. Telegram usernames are unique, so an
+ * unclaimed allowlist entry for the new username is this same person and gets merged in.
+ */
+export async function syncProfile(
+  db: D1Database,
+  member: Member,
+  rawUsername: string | undefined,
+  name: string,
+): Promise<Member> {
+  const username = rawUsername?.toLowerCase();
+  const usernameChanged = username !== undefined && username !== member.username;
+  if (!usernameChanged && name === member.name) return member;
+
+  let next = { username: member.username, role: member.role };
+  if (usernameChanged) {
+    const other = await db
+      .prepare("SELECT role, tg_id FROM members WHERE username = ?")
+      .bind(username)
+      .first<{ role: Role; tg_id: number | null }>();
+    if (!other) {
+      next = { ...next, username };
+    } else if (other.tg_id === null) {
+      // The admin allowlisted the new username too; their latest choice of role wins.
+      await db.prepare("DELETE FROM members WHERE username = ?").bind(username).run();
+      next = { username, role: other.role };
+    }
+    // Otherwise another linked account still holds it in our records (they renamed too); keep ours.
+  }
+
+  const updated = await db
+    .prepare("UPDATE members SET username = ?, role = ?, name = ? WHERE tg_id = ? RETURNING *")
+    .bind(next.username, next.role, name, member.tg_id)
+    .first<Member>();
+  return updated ?? member;
+}
+
 export async function updateMember(db: D1Database, tgId: number, update: MemberUpdate): Promise<Member> {
   const keys = MEMBER_FIELDS.filter((key) => key in update);
   const member = await db

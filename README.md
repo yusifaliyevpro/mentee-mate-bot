@@ -50,6 +50,8 @@ The admin is the Telegram user whose numeric ID is set in `ADMIN_ID`. These comm
 | `/remove @user`          | Remove someone and their history                    |
 | `/members`               | List everyone and whether they've started the bot   |
 
+The allowlist uses usernames, but pressing **Start** links each person to their Telegram account. After that, username and name changes are picked up automatically. Someone who changes their username _before_ pressing Start is told their current username, so they can send it to the admin to add.
+
 ## Self-hosting
 
 You need a Telegram account, a free [Cloudflare](https://dash.cloudflare.com/sign-up) account, Node.js 24+ and pnpm.

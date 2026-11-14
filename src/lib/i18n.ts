@@ -5,7 +5,10 @@ export const LANGS: Lang[] = ["az", "en"];
 export const LANG_NAMES: Record<Lang, string> = { az: "🇦🇿 Azərbaycanca", en: "🇬🇧 English" };
 
 const en = {
-  notAllowed: "Sorry, this bot is private. Ask your group admin to add your username.",
+  notAllowed: (username: string | undefined) =>
+    username
+      ? `Sorry, this bot is private. Ask your group admin to add you by sending them your username: @${username}`
+      : "Sorry, this bot is private. Set a username in Telegram settings first, then ask your group admin to add you.",
   welcome: (name: string) =>
     `Hi ${name}! 👋\n\nI'll remind you every day to write down your thoughts. Pick the time and days that suit you below. You can change them anytime with /settings.`,
   mentorWelcome: (name: string) => `Hi ${name}! 👋 You're all set.`,
@@ -100,7 +103,10 @@ const en = {
 export type Messages = typeof en;
 
 const az: Messages = {
-  notAllowed: "Bağışla, bu bot şəxsidir. İstifadəçi adını əlavə etməsi üçün qrup adminindən xahiş et.",
+  notAllowed: (username) =>
+    username
+      ? `Bağışla, bu bot şəxsidir. Səni əlavə etməsi üçün qrup adminə istifadəçi adını göndər: @${username}`
+      : "Bağışla, bu bot şəxsidir. Əvvəlcə Telegram tənzimləmələrində istifadəçi adı təyin et, sonra qrup adminindən səni əlavə etməsini xahiş et.",
   welcome: (name) =>
     `Salam, ${name}! 👋\n\nHər gün sənə düşüncələrini yazmağı xatırladacağam. Aşağıdan sənə uyğun saatı və günləri seç. İstənilən vaxt /settings ilə dəyişə bilərsən.`,
   mentorWelcome: (name) => `Salam, ${name}! 👋 Hər şey hazırdır.`,

@@ -20,18 +20,18 @@ afterEach(() => {
 describe("access control", () => {
   it("turns away users who aren't on the allowlist", async () => {
     await h.send(STRANGER, "/start");
-    expect(h.telegram.sentTo(STRANGER.id)).toEqual([az.notAllowed]);
+    expect(h.telegram.sentTo(STRANGER.id)).toEqual([az.notAllowed("random_guy")]);
     expect(h.member(STRANGER)).toBeUndefined();
   });
 
   it("turns away users without a username", async () => {
     await h.send({ id: 77, first_name: "NoName" }, "/start");
-    expect(h.telegram.sentTo(77)).toEqual([az.notAllowed]);
+    expect(h.telegram.sentTo(77)).toEqual([az.notAllowed(undefined)]);
   });
 
   it("answers a stranger's button tap with the not-allowed notice", async () => {
     await h.tap(STRANGER, "s:time");
-    expect(h.telegram.answers()).toEqual([az.notAllowed]);
+    expect(h.telegram.answers()).toEqual([az.notAllowed("random_guy")]);
   });
 
   it("lets an allowlisted user in and links their Telegram account", async () => {
@@ -49,17 +49,11 @@ describe("access control", () => {
     expect(h.member(AYSEL)?.username).toBe("aysel_m");
   });
 
-  it("keeps access after the user changes their username", async () => {
-    await h.onboard(AYSEL);
-    await h.send({ ...AYSEL, username: "aysel_new" }, "/settings");
-    expect(h.telegram.sentTo(AYSEL.id)[0]).toContain(az.settingsTitle);
-  });
-
   it("doesn't let a second account claim an already linked username", async () => {
     await h.onboard(AYSEL);
     const impostor = { id: 4242, first_name: "Fake", username: AYSEL.username };
     await h.send(impostor, "/start");
-    expect(h.telegram.sentTo(impostor.id)).toEqual([az.notAllowed]);
+    expect(h.telegram.sentTo(impostor.id)).toEqual([az.notAllowed("aysel_m")]);
     expect(h.member(AYSEL)?.tg_id).toBe(AYSEL.id);
   });
 
@@ -79,7 +73,7 @@ describe("access control", () => {
     await h.onboard(AYSEL);
     await h.send(ADMIN, "/remove @aysel_m");
     await h.send(AYSEL, "/settings");
-    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.notAllowed]);
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.notAllowed("aysel_m")]);
 
     await h.send(ADMIN, "/allow @aysel_m");
     await h.send(AYSEL, "/start");
@@ -91,6 +85,107 @@ describe("access control", () => {
     await h.send(AYSEL, "/done");
     await h.send(ADMIN, "/remove @aysel_m");
     expect(h.db.query("SELECT * FROM days WHERE tg_id = ?", AYSEL.id)).toEqual([]);
+  });
+});
+
+describe("username and name changes", () => {
+  const renamed = { ...AYSEL, username: "Aysel_New" };
+
+  it("keep access, update the stored username, and keep settings and history", async () => {
+    await h.onboard(AYSEL);
+    await h.tap(AYSEL, "s:t:1320");
+    await h.send(AYSEL, "/done");
+    h.telegram.clear();
+    await h.send(renamed, "/settings");
+    expect(h.telegram.sentTo(AYSEL.id)[0]).toContain(az.settingsTitle);
+    expect(h.member(AYSEL)).toMatchObject({ username: "aysel_new", remind_at: 1320, tg_id: AYSEL.id });
+    expect(h.memberByUsername("aysel_m")).toBeUndefined();
+    expect(h.day(AYSEL, "2026-11-14")?.done_at).not.toBeNull();
+  });
+
+  it("let the admin manage them by the new username", async () => {
+    await h.onboard(AYSEL);
+    await h.send(renamed, "/help");
+    h.telegram.clear();
+    await h.send(ADMIN, "/members");
+    expect(h.telegram.sentTo(ADMIN.id)[0]).toContain("Aysel (@aysel_new)");
+    await h.send(ADMIN, "/remove @aysel_new");
+    expect(h.member(AYSEL)).toBeUndefined();
+  });
+
+  it("free the old username, so it can be allowlisted for someone else", async () => {
+    await h.onboard(AYSEL);
+    await h.send(renamed, "/help");
+    const newcomer = { id: 88, first_name: "Other", username: "aysel_m" };
+    await h.send(ADMIN, "/allow @aysel_m");
+    await h.send(newcomer, "/start");
+    expect(h.member(newcomer)?.username).toBe("aysel_m");
+    expect(h.member(AYSEL)?.username).toBe("aysel_new");
+  });
+
+  it("update the display name", async () => {
+    await h.onboard(AYSEL);
+    await h.send({ ...AYSEL, first_name: "Aysel M." }, "/help");
+    expect(h.member(AYSEL)?.name).toBe("Aysel M.");
+  });
+
+  it("keep the old username if the user removes theirs", async () => {
+    await h.onboard(AYSEL);
+    await h.send({ id: AYSEL.id, first_name: AYSEL.first_name }, "/settings");
+    expect(h.member(AYSEL)?.username).toBe("aysel_m");
+    expect(h.telegram.sentTo(AYSEL.id)[0]).toContain(az.settingsTitle);
+  });
+
+  it("merge with an allowlist entry the admin already made for the new username", async () => {
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/allow @aysel_new");
+    await h.send(renamed, "/settings");
+    expect(h.db.query("SELECT username FROM members WHERE username LIKE ?", "aysel%")).toEqual([
+      { username: "aysel_new" },
+    ]);
+    expect(h.member(AYSEL)?.username).toBe("aysel_new");
+  });
+
+  it("take the role from that entry, as the admin's latest choice", async () => {
+    await h.onboard(AYSEL);
+    await h.send(ADMIN, "/mentor @aysel_new");
+    await h.send(renamed, "/settings");
+    expect(h.member(AYSEL)?.role).toBe("mentor");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.mentorNoSettings]);
+  });
+
+  it("keep the old username while another linked account still holds the new one", async () => {
+    // Murad renamed away from murad_k and Aysel took it, but Murad hasn't messaged the bot since.
+    await h.onboard(AYSEL, MURAD);
+    await h.send({ ...AYSEL, username: "murad_k" }, "/settings");
+    expect(h.member(AYSEL)?.username).toBe("aysel_m");
+    expect(h.member(MURAD)?.username).toBe("murad_k");
+    expect(h.telegram.sentTo(AYSEL.id)[0]).toContain(az.settingsTitle);
+  });
+
+  it("swap cleanly once the other account shows up with its new username", async () => {
+    await h.onboard(AYSEL, MURAD);
+    await h.send({ ...MURAD, username: "murad_new" }, "/help");
+    await h.send({ ...AYSEL, username: "murad_k" }, "/help");
+    expect(h.member(MURAD)?.username).toBe("murad_new");
+    expect(h.member(AYSEL)?.username).toBe("murad_k");
+  });
+
+  it("pick up a username the admin sets later", async () => {
+    await h.send({ id: ADMIN.id, first_name: "Yusif" }, "/start");
+    await h.send(ADMIN, "/help");
+    expect(h.member(ADMIN)?.username).toBe("yusifaliyevpro");
+    expect(h.memberByUsername(`id:${ADMIN.id}`)).toBeUndefined();
+  });
+
+  it("before ever pressing Start can't be matched, but the user is told what to send", async () => {
+    await h.send(ADMIN, "/allow @aysel_m");
+    await h.send(renamed, "/start");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.notAllowed("Aysel_New")]);
+
+    await h.send(ADMIN, "/allow @aysel_new");
+    await h.send(renamed, "/start");
+    expect(h.member(AYSEL)?.username).toBe("aysel_new");
   });
 });
 
