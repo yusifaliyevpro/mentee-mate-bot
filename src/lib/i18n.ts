@@ -147,7 +147,7 @@ const az: Messages = {
   noDays: "heç biri",
   active: "▶️ aktiv",
   pausedStatus: "⏸ dayandırılıb",
-  weekdays: ["1-ci gün", "2-ci gün", "3-cü gün", "4-cü gün", "5-ci gün", "6-cı gün", "7-ci gün"],
+  weekdays: ["1", "2", "3", "4", "5", "6", "7"],
   btnTime: "⏰ Saat",
   btnDays: "📅 Günlər",
   btnMessage: "💬 Mətn",
@@ -157,7 +157,7 @@ const az: Messages = {
   btnResetMessage: "↩️ Standart mətn",
   pickHour: "Saatı seç:",
   pickMinute: (hour) => `Dəqiqəni seç (${hour}:__):`,
-  pickDays: "Xatırlatmanı açmaq və ya bağlamaq üçün günə toxun:",
+  pickDays: "Xatırlatmanı açmaq və ya bağlamaq üçün günə toxun (1 = bazar ertəsi, 7 = bazar):",
   messagePrompt:
     "Xatırlatma kimi almaq istədiyin mətni göndər (500 simvola qədər).\n\nİndikini saxlamaq üçün /cancel göndər.",
   messageSaved: "💬 Xatırlatma mətnin yadda saxlanıldı.",

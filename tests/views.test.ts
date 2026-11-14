@@ -48,18 +48,19 @@ describe("settingsText", () => {
   });
 
   it("numbers the days in Azerbaijani, as people usually say them", () => {
-    expect(messages.az.weekdays).toEqual([
-      "1-ci gün",
-      "2-ci gün",
-      "3-cü gün",
-      "4-cü gün",
-      "5-ci gün",
-      "6-cı gün",
-      "7-ci gün",
-    ]);
-    expect(settingsText(messages.az, member({ weekdays: 0b001_0101 }))).toContain(
-      "📅 Günlər: 1-ci gün, 3-cü gün, 5-ci gün",
-    );
+    expect(messages.az.weekdays).toEqual(["1", "2", "3", "4", "5", "6", "7"]);
+    expect(settingsText(messages.az, member({ weekdays: 0b001_0101 }))).toContain("📅 Günlər: 1, 3, 5");
+    expect(
+      daysKeyboard(messages.az, 0b000_0001)
+        .inline_keyboard.flat()
+        .map((button) => button.text)
+        .slice(0, 7),
+    ).toEqual(["✅ 1", "▫️ 2", "▫️ 3", "▫️ 4", "▫️ 5", "▫️ 6", "▫️ 7"]);
+  });
+
+  it("explains the numbering where days are picked", () => {
+    expect(messages.az.pickDays).toContain("1 = bazar ertəsi");
+    expect(messages.az.pickDays).toContain("7 = bazar");
   });
 
   it("shows the default text in Azerbaijani too", () => {
