@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261113.1",
+    "@types/node": "^24.19.2",
     "greenly": "1.2.0",
     "oxfmt": "0.78.0",
     "oxlint": "1.93.0",

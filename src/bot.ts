@@ -8,6 +8,7 @@ import { reminderTimePassed } from "./lib/schedule";
 import { formatMinutes, localTime, logicalDay, toggleDay, unixSeconds } from "./lib/time";
 import {
   MAX_MESSAGE_LENGTH,
+  SNOOZE_MINUTES,
   PICKER_HOURS,
   adminKeyboard,
   adminSettingsText,
@@ -34,6 +35,8 @@ const now = () => new Date();
 
 export function createBot(env: Env): Bot<BotContext> {
   const bot = new Bot<BotContext>(env.BOT_TOKEN);
+  // Webhook mode rethrows errors, which would make Telegram retry the same update over and over.
+  const app = bot.errorBoundary(({ error }) => console.error("Update failed:", error));
   const adminId = Number(env.ADMIN_ID);
   const timeZone = env.TIMEZONE;
   const clock = (at: Date) => formatMinutes(localTime(at, timeZone).minutes);
@@ -44,10 +47,13 @@ export function createBot(env: Env): Bot<BotContext> {
     if (!reminderTimePassed(remindAt, at, timeZone)) return;
     const { day } = logicalDay(at, timeZone);
     const existing = await db.getDay(env.DB, tgId, day);
-    if (!existing?.reminded_at) await db.setDay(env.DB, tgId, day, { reminded_at: unixSeconds(at) });
+    if (existing?.reminded_at) return;
+    // Use the scheduled time, not now, so the 23:50 nudge's one-hour gap is measured correctly.
+    const scheduled = unixSeconds(at) - (localTime(at, timeZone).minutes - remindAt) * 60;
+    await db.setDay(env.DB, tgId, day, { reminded_at: scheduled });
   };
 
-  bot.use(async (ctx, next) => {
+  app.use(async (ctx, next) => {
     if (!ctx.from || ctx.chat?.type !== "private") return;
     const settings = await db.getSettings(env.DB);
     const t = messages[settings.lang];
@@ -73,7 +79,7 @@ export function createBot(env: Env): Bot<BotContext> {
     await next();
   });
 
-  bot.command("start", async (ctx) => {
+  app.command("start", async (ctx) => {
     const name = ctx.from?.first_name ?? "";
     if (ctx.isAdmin) await syncCommands(ctx.api, ctx.settings.lang, adminId);
     if (ctx.member.role === "mentor") {
@@ -84,10 +90,10 @@ export function createBot(env: Env): Bot<BotContext> {
     await ctx.reply(settingsText(ctx.t, ctx.member), { reply_markup: settingsKeyboard(ctx.t, ctx.member) });
   });
 
-  bot.command("help", (ctx) => ctx.reply(ctx.isAdmin ? `${ctx.t.help}\n\n${ctx.t.adminHelp}` : ctx.t.help));
+  app.command("help", (ctx) => ctx.reply(ctx.isAdmin ? `${ctx.t.help}\n\n${ctx.t.adminHelp}` : ctx.t.help));
 
   // Admin
-  const admin = bot.filter((ctx) => ctx.isAdmin);
+  const admin = app.filter((ctx) => ctx.isAdmin);
 
   const showAdmin = async (ctx: BotContext, settings: db.Settings, edit: boolean) => {
     const t = messages[settings.lang];
@@ -101,7 +107,7 @@ export function createBot(env: Env): Bot<BotContext> {
 
   admin.callbackQuery(/^a:lang:(\w+)$/, async (ctx) => {
     const lang = ctx.match[1];
-    if (!isLang(lang)) {
+    if (!isLang(lang) || lang === ctx.settings.lang) {
       await ctx.answerCallbackQuery();
       return;
     }
@@ -113,7 +119,7 @@ export function createBot(env: Env): Bot<BotContext> {
 
   admin.callbackQuery(/^a:digest:(\w+)$/, async (ctx) => {
     const digestMode = ctx.match[1];
-    if (!isDigestMode(digestMode)) {
+    if (!isDigestMode(digestMode) || digestMode === ctx.settings.digestMode) {
       await ctx.answerCallbackQuery();
       return;
     }
@@ -159,7 +165,7 @@ export function createBot(env: Env): Bot<BotContext> {
   admin.command("members", async (ctx) => ctx.reply(membersText(ctx.t, await db.listMembers(env.DB))));
 
   // Mentees
-  const mentee = bot.filter((ctx) => ctx.member.role === "mentee");
+  const mentee = app.filter((ctx) => ctx.member.role === "mentee");
 
   const showSettings = async (ctx: BotContext, member: db.Member) => {
     if (member.awaiting) member = await db.updateMember(env.DB, ctx.userId, { awaiting: null });
@@ -215,7 +221,12 @@ export function createBot(env: Env): Bot<BotContext> {
 
   mentee.callbackQuery(new RegExp(`^snooze:(\\d+):${DAY_PATTERN}$`), async (ctx) => {
     const at = now();
+    const minutes = Number(ctx.match[1]);
     const day = ctx.match[2] ?? "";
+    if (!SNOOZE_MINUTES.includes(minutes)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     if (day !== logicalDay(at, timeZone).day) {
       await ctx.answerCallbackQuery(ctx.t.dayOver);
       return;
@@ -226,7 +237,11 @@ export function createBot(env: Env): Bot<BotContext> {
       return;
     }
 
-    const until = new Date(at.getTime() + Number(ctx.match[1]) * 60_000);
+    const until = new Date(at.getTime() + minutes * 60_000);
+    if (logicalDay(until, timeZone).day !== day) {
+      await ctx.answerCallbackQuery(ctx.t.snoozeTooLate);
+      return;
+    }
     await db.setDay(env.DB, ctx.userId, day, { snooze_until: unixSeconds(until) });
     await ctx.answerCallbackQuery();
     const original = ctx.callbackQuery.message?.text;
@@ -307,10 +322,8 @@ export function createBot(env: Env): Bot<BotContext> {
     await ctx.reply(settingsText(ctx.t, member), { reply_markup: settingsKeyboard(ctx.t, member) });
   });
 
-  bot.on("message", (ctx) => ctx.reply(ctx.member.role === "mentor" ? ctx.t.mentorNoSettings : ctx.t.unknown));
-  bot.on("callback_query", (ctx) => ctx.answerCallbackQuery());
-
-  bot.catch(({ error }) => console.error("Update failed:", error));
+  app.on("message", (ctx) => ctx.reply(ctx.member.role === "mentor" ? ctx.t.mentorNoSettings : ctx.t.unknown));
+  app.on("callback_query", (ctx) => ctx.answerCallbackQuery());
 
   return bot;
 }

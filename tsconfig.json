@@ -8,7 +8,7 @@
     "noUnusedLocals": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types", "node"]
   },
   "include": ["src/**/*", "tests/**/*", "*.config.ts"],
   "exclude": ["node_modules", ".wrangler"]

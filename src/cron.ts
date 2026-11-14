@@ -16,8 +16,7 @@ async function send(api: Api, chatId: number, text: string, keyboard?: InlineKey
   }
 }
 
-export async function runTick(env: Env, now: Date): Promise<void> {
-  const api = new Api(env.BOT_TOKEN);
+export async function runTick(env: Env, now: Date, api = new Api(env.BOT_TOKEN)): Promise<void> {
   const settings = await db.getSettings(env.DB);
   const t = messages[settings.lang];
   const { day } = logicalDay(now, env.TIMEZONE);

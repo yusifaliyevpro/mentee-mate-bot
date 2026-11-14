@@ -16,4 +16,14 @@ export default defineConfig({
     "unicorn/prefer-node-protocol": "warn",
     "typescript/consistent-type-imports": "warn",
   },
+  overrides: [
+    {
+      // Test fakes stand in for D1 and the Bot API, so they assert their way into those types.
+      files: ["tests/**"],
+      rules: {
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+      },
+    },
+  ],
 });

@@ -30,7 +30,13 @@ async function setup(env: Env, origin: string): Promise<Response> {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method === "POST" && url.pathname === "/webhook") return webhookHandler(env)(request);
+    if (request.method === "POST" && url.pathname === "/webhook") {
+      // Checked here because grammY would otherwise call getMe before rejecting the request.
+      if (request.headers.get("x-telegram-bot-api-secret-token") !== env.WEBHOOK_SECRET) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return webhookHandler(env)(request);
+    }
     if (request.method === "POST" && url.pathname === "/setup") {
       if (request.headers.get("x-setup-secret") !== env.WEBHOOK_SECRET) {
         return new Response("Unauthorized", { status: 401 });

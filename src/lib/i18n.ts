@@ -22,6 +22,7 @@ const en = {
   alreadyDone: "Already marked as done ✅",
   dayOver: "That day is already over.",
   snoozedUntil: (time: string) => `⏰ OK, I'll remind you again at ${time}.`,
+  snoozeTooLate: "Too late to snooze: the day ends at 04:00.",
 
   settingsTitle: "⚙️ Your settings",
   settingTime: "⏰ Time",
@@ -116,6 +117,7 @@ const az: Messages = {
   alreadyDone: "Artıq yazılmış kimi qeyd olunub ✅",
   dayOver: "O gün artıq bitib.",
   snoozedUntil: (time) => `⏰ Yaxşı, yenə xatırladacağam (${time}).`,
+  snoozeTooLate: "Təxirə salmaq üçün artıq gecdir: gün saat 04:00-da bitir.",
 
   settingsTitle: "⚙️ Tənzimləmələrin",
   settingTime: "⏰ Saat",

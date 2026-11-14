@@ -117,7 +117,7 @@ Run all checks (typecheck, format, lint, tests) with:
 pnpm check
 ```
 
-The scheduling, digest and view logic live in pure functions under `src/lib/` and are covered by tests in `tests/`.
+Tests drive the real bot handlers and cron against an in-memory SQLite database (with the real migrations) and a fake Telegram API, so whole days can be simulated minute by minute. See `tests/support/`.
 
 ## License
 
