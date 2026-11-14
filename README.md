@@ -1,5 +1,5 @@
 <h1>
-  <img src="assets/logo.svg" alt="" height="34" align="center" />
+  <img src="assets/logo.svg" alt="" height="34" align="top" />
   MenteeMateBot
 </h1>
 
