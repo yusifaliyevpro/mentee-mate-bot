@@ -1,0 +1,54 @@
+{
+  "name": "mentee-mate-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram bot that reminds mentees to write their daily notes, each at their own time, and optionally sends their mentor a summary.",
+  "keywords": [
+    "cloudflare-workers",
+    "d1",
+    "grammy",
+    "journaling",
+    "mentorship",
+    "reminder",
+    "telegram-bot"
+  ],
+  "homepage": "https://github.com/yusifaliyevpro/mentee-mate-bot#readme",
+  "bugs": {
+    "url": "https://github.com/yusifaliyevpro/mentee-mate-bot/issues"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": {
+    "name": "Yusif Aliyev",
+    "url": "https://yusifaliyevpro.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yusifaliyevpro/mentee-mate-bot.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "db:migrate": "wrangler d1 migrations apply mentee-mate-bot --remote",
+    "db:migrate:local": "wrangler d1 migrations apply mentee-mate-bot --local",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "greenly"
+  },
+  "dependencies": {
+    "grammy": "1.46.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261113.1",
+    "greenly": "1.2.0",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0",
+    "wrangler": "4.161.0"
+  }
+}
