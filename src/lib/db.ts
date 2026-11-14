@@ -28,7 +28,7 @@ export interface Settings {
 export type ReminderRow = ScheduleRow & { message: string | null };
 
 const MEMBER_FIELDS = ["remind_at", "weekdays", "message", "paused", "awaiting", "welcomed_role"] as const;
-const DAY_FIELDS = ["reminded_at", "snooze_until", "nudged_at", "done_at"] as const;
+const DAY_FIELDS = ["reminded_at", "skipped_at", "snooze_until", "nudged_at", "done_at"] as const;
 
 type MemberUpdate = Partial<Pick<Member, (typeof MEMBER_FIELDS)[number]>>;
 type DayUpdate = Partial<Record<(typeof DAY_FIELDS)[number], number | null>>;
@@ -163,7 +163,7 @@ export async function reminderRows(db: D1Database, day: string): Promise<Reminde
   const { results } = await db
     .prepare(
       `SELECT m.tg_id, m.remind_at, m.weekdays, m.paused, m.message,
-              d.reminded_at, d.snooze_until, d.nudged_at, d.done_at
+              d.reminded_at, d.skipped_at, d.snooze_until, d.nudged_at, d.done_at
        FROM members m LEFT JOIN days d ON d.tg_id = m.tg_id AND d.day = ?
        WHERE m.role = 'mentee' AND m.tg_id IS NOT NULL`,
     )

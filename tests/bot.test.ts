@@ -548,7 +548,7 @@ describe("settings: reminder time", () => {
   it("a time that already passed today starts tomorrow", async () => {
     h.at("2026-11-14 21:30");
     await h.tap(AYSEL, "s:t:1260");
-    expect(h.day(AYSEL, "2026-11-14")?.reminded_at).not.toBeNull();
+    expect(h.day(AYSEL, "2026-11-14")).toMatchObject({ reminded_at: null, skipped_at: expect.any(Number) });
     await h.tick("2026-11-14 21:31");
     await h.tick("2026-11-15 21:00");
     expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);

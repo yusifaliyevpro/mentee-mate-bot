@@ -44,7 +44,7 @@ tests/          vitest suites; tests/support/ has the fakes and harness
 - **Registering or picking a time that already passed today:** the reminder starts tomorrow, with no immediate catch-up.
 - **Picking a later time today:** this re-arms today's reminder and replaces a pending snooze, unless the day is already done.
 - **Snooze:** 30 or 60 minutes only, and never past 04:00.
-- **23:50 nudge:** goes to anyone not done, on their active days. It's skipped if a reminder went out less than an hour earlier, or a snooze is pending.
+- **23:50 nudge:** only goes to someone who was actually sent a reminder that day and isn't done. It's skipped if that reminder went out less than an hour earlier, or a snooze is pending. A reminder skipped because its time had passed is stored in `days.skipped_at`, never in `reminded_at`, so it doesn't count.
 - **Mentor summary at 10:00:** covers the previous logical day. The mode (`off` / `count` / `names`) is admin-only and the mentor never sees it. Days off and paused mentees show as 💤.
 - **Access:**
   - The admin is identified by numeric `ADMIN_ID` and auto-registered as a mentee.

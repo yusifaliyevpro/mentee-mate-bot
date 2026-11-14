@@ -22,6 +22,7 @@ export interface DayRow {
   tg_id: number;
   day: string;
   reminded_at: number | null;
+  skipped_at: number | null;
   snooze_until: number | null;
   nudged_at: number | null;
   done_at: number | null;

@@ -20,6 +20,7 @@ export function scheduleRow(overrides: Partial<ScheduleRow> = {}): ScheduleRow {
     weekdays: ALL_DAYS,
     paused: 0,
     reminded_at: null,
+    skipped_at: null,
     snooze_until: null,
     nudged_at: null,
     done_at: null,

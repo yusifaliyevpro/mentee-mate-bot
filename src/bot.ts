@@ -40,16 +40,14 @@ export function createBot(env: Env): Bot<BotContext> {
   const timeZone = env.TIMEZONE;
   const clock = (at: Date) => formatMinutes(localTime(at, timeZone).minutes);
 
-  // Mark today as reminded so a time that already passed doesn't fire as a late catch-up.
+  // A time that already passed is skipped, not sent, so it neither fires late nor earns a nudge.
   const skipPassedReminder = async (tgId: number, remindAt: number) => {
     const at = now();
     if (!reminderTimePassed(remindAt, at, timeZone)) return;
     const { day } = logicalDay(at, timeZone);
     const existing = await db.getDay(env.DB, tgId, day);
-    if (existing?.reminded_at) return;
-    // Use the scheduled time, not now, so the 23:50 nudge's one-hour gap is measured correctly.
-    const scheduled = unixSeconds(at) - (localTime(at, timeZone).minutes - remindAt) * 60;
-    await db.setDay(env.DB, tgId, day, { reminded_at: scheduled });
+    if (existing?.reminded_at || existing?.skipped_at) return;
+    await db.setDay(env.DB, tgId, day, { skipped_at: unixSeconds(at) });
   };
 
   // A later time today re-arms today's reminder (and replaces a pending snooze) unless the day is done.
@@ -61,8 +59,8 @@ export function createBot(env: Env): Bot<BotContext> {
     }
     const { day } = logicalDay(at, timeZone);
     const existing = await db.getDay(env.DB, tgId, day);
-    if (existing?.reminded_at && !existing.done_at) {
-      await db.setDay(env.DB, tgId, day, { reminded_at: null, snooze_until: null });
+    if ((existing?.reminded_at || existing?.skipped_at) && !existing.done_at) {
+      await db.setDay(env.DB, tgId, day, { reminded_at: null, skipped_at: null, snooze_until: null });
     }
   };
 

@@ -16,6 +16,7 @@ export interface ScheduleRow {
   weekdays: number;
   paused: number;
   reminded_at: number | null;
+  skipped_at: number | null;
   snooze_until: number | null;
   nudged_at: number | null;
   done_at: number | null;
@@ -50,6 +51,7 @@ export function planTick<T extends ScheduleRow>(rows: T[], now: Date, timeZone: 
     } else if (
       afterDayStart &&
       row.reminded_at === null &&
+      row.skipped_at === null &&
       minutes >= row.remind_at &&
       minutes < row.remind_at + CATCH_UP_MINUTES
     ) {
@@ -58,7 +60,9 @@ export function planTick<T extends ScheduleRow>(rows: T[], now: Date, timeZone: 
       minutes >= NUDGE_AT &&
       row.nudged_at === null &&
       row.snooze_until === null &&
-      (row.reminded_at === null || nowSeconds - row.reminded_at >= NUDGE_GAP_SECONDS)
+      // Only a reminder that was actually sent today earns a nudge.
+      row.reminded_at !== null &&
+      nowSeconds - row.reminded_at >= NUDGE_GAP_SECONDS
     ) {
       actions.push({ kind: "nudge", row });
     }

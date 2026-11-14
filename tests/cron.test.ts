@@ -208,13 +208,52 @@ describe("23:50 nudge", () => {
   });
 
   it("is sent once, then nothing more until the next day", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.telegram.clear();
     await h.tickEveryMinute("2026-11-14 23:49", "2026-11-15 04:30");
     expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.nudge]);
   });
 
-  it("is sent even if the evening reminder was missed entirely", async () => {
-    await h.tick("2026-11-14 23:52");
-    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.nudge]);
+  it("is not sent if no reminder went out that day", async () => {
+    await h.tickEveryMinute("2026-11-14 23:45", "2026-11-15 00:10");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([]);
+  });
+
+  it("is not sent to someone who joined after their reminder time", async () => {
+    await h.send(ADMIN, "/allow @murad_k");
+    h.at("2026-11-14 23:13");
+    await h.send(MURAD, "/start");
+    h.telegram.clear();
+    await h.tickEveryMinute("2026-11-14 23:13", "2026-11-15 00:10");
+    expect(h.telegram.sentTo(MURAD.id)).toEqual([]);
+  });
+
+  it("is not sent after picking a time that already passed, when nothing went out today", async () => {
+    h.at("2026-11-14 20:00");
+    await h.tap(AYSEL, "s:t:1320");
+    h.at("2026-11-14 22:30");
+    await h.tap(AYSEL, "s:t:1320");
+    await h.tickEveryMinute("2026-11-14 22:30", "2026-11-15 00:10");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([]);
+  });
+
+  it("is sent after a late joiner picks a later time today and gets that reminder", async () => {
+    await h.send(ADMIN, "/allow @murad_k");
+    h.at("2026-11-14 21:30");
+    await h.send(MURAD, "/start");
+    await h.tap(MURAD, "s:t:1320");
+    h.telegram.clear();
+    await h.tickEveryMinute("2026-11-14 21:30", "2026-11-15 00:10");
+    expect(h.telegram.sentTo(MURAD.id)).toEqual([az.defaultReminder, az.nudge]);
+  });
+
+  it("still counts a snoozed reminder as sent", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.at("2026-11-14 21:00");
+    await h.tap(AYSEL, "snooze:30:2026-11-14");
+    h.telegram.clear();
+    await h.tickEveryMinute("2026-11-14 21:30", "2026-11-14 23:59");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder, az.nudge]);
   });
 
   it("is skipped within an hour of a late reminder", async () => {
@@ -240,6 +279,7 @@ describe("23:50 nudge", () => {
 
   it("follows the bot language", async () => {
     await h.tap(ADMIN, "a:lang:en");
+    await h.tick("2026-11-14 21:00");
     h.telegram.clear();
     await h.tick("2026-11-14 23:50");
     expect(h.telegram.sentTo(AYSEL.id)).toEqual([en.nudge]);
