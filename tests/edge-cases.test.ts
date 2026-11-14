@@ -272,6 +272,17 @@ describe("i18n content", () => {
       }
     });
 
+    it(`makes clear that 04:00 is at night in ${lang}`, () => {
+      const mentions = sample(messages[lang]).filter((text) => /04:00|4 AM/.test(text));
+      const atNight = lang === "az" ? "gecə saat 04:00" : "4 AM";
+      expect(mentions.length).toBeGreaterThanOrEqual(5);
+      for (const text of mentions) expect(text).toContain(atNight);
+    });
+
+    it(`explains when a day ends when a tap comes too late in ${lang}`, () => {
+      expect(messages[lang].dayOver).toMatch(lang === "az" ? /gecə saat 04:00/ : /4 AM/);
+    });
+
     it(`has unique weekday labels in ${lang}`, () => {
       expect(new Set(messages[lang].weekdays).size).toBe(7);
     });

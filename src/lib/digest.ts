@@ -11,6 +11,7 @@ export interface DigestRow {
   name: string | null;
   weekdays: number;
   paused: number;
+  reminded_at: number | null;
   done_at: number | null;
 }
 
@@ -34,10 +35,14 @@ export function digestDayToSend(now: Date, timeZone: string, lastSentDay: string
 // Paused is the current state, not the state on `day`; close enough for a daily summary.
 export function digestEntries(rows: DigestRow[], day: string): DigestEntry[] {
   const weekday = weekdayOf(day);
-  return rows.map((row) => ({
-    name: row.name ?? row.username,
-    status: row.done_at !== null ? "done" : row.paused || !isActiveDay(row.weekdays, weekday) ? "off" : "missed",
-  }));
+  return rows.flatMap((row): DigestEntry[] => {
+    const name = row.name ?? row.username;
+    if (row.done_at !== null) return [{ name, status: "done" }];
+    if (row.paused || !isActiveDay(row.weekdays, weekday)) return [{ name, status: "off" }];
+    // Nobody can be blamed for a day they were never reminded about, so they don't count at all.
+    if (row.reminded_at === null) return [];
+    return [{ name, status: "missed" }];
+  });
 }
 
 export function buildDigest(entries: DigestEntry[], mode: DigestMode, t: Messages, day: string): string | null {

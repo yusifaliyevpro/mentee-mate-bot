@@ -6,10 +6,10 @@ import { TZ, baku } from "./helpers";
 const t = messages.en;
 
 const rows: DigestRow[] = [
-  { username: "aysel", name: "Aysel", weekdays: 0b111_1111, paused: 0, done_at: 1 },
-  { username: "murad", name: "Murad", weekdays: 0b001_1111, paused: 0, done_at: null },
-  { username: "nigar", name: null, weekdays: 0b111_1111, paused: 0, done_at: null },
-  { username: "orxan", name: "Orxan", weekdays: 0b111_1111, paused: 1, done_at: null },
+  { username: "aysel", name: "Aysel", weekdays: 0b111_1111, paused: 0, reminded_at: 1, done_at: 2 },
+  { username: "murad", name: "Murad", weekdays: 0b001_1111, paused: 0, reminded_at: null, done_at: null },
+  { username: "nigar", name: null, weekdays: 0b111_1111, paused: 0, reminded_at: 1, done_at: null },
+  { username: "orxan", name: "Orxan", weekdays: 0b111_1111, paused: 1, reminded_at: null, done_at: null },
 ];
 
 describe("digestEntries", () => {
@@ -25,6 +25,21 @@ describe("digestEntries", () => {
 
   it("counts a day off as done when they wrote anyway", () => {
     const [entry] = digestEntries([{ ...rows[1], done_at: 1 }], "2026-11-14");
+    expect(entry?.status).toBe("done");
+  });
+
+  it("leaves out someone who wasn't sent a reminder and didn't write", () => {
+    const unreminded = { ...rows[2], username: "lamiya", name: "Lamiya", reminded_at: null };
+    expect(digestEntries([...rows, unreminded], "2026-11-14").map((entry) => entry.name)).toEqual([
+      "Aysel",
+      "Murad",
+      "nigar",
+      "Orxan",
+    ]);
+  });
+
+  it("still counts someone who wrote without being reminded", () => {
+    const [entry] = digestEntries([{ ...rows[2], reminded_at: null, done_at: 5 }], "2026-11-14");
     expect(entry?.status).toBe("done");
   });
 });

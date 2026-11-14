@@ -13,26 +13,26 @@ const en = {
     `Hi ${name}! 👋\n\nI'll remind you every day to write down your thoughts. Pick the time and days that suit you below. You can change them anytime with /settings.`,
   mentorWelcome: (name: string) => `Hi ${name}! 👋 You're all set.`,
   mentorIntro:
-    "Here's how it works:\n\n• Each mentee gets a daily reminder, at a time they choose, to spend 5–10 minutes writing their notes. They tap ✅ Done when they've written.\n• A day lasts until 04:00, so notes written after midnight still count.\n• When the admin enables it, you'll get a short summary here every morning at 10:00 about the previous day.\n\nThere's nothing you need to set up. Send /help anytime to see this again.",
+    "Here's how it works:\n\n• Each mentee gets a daily reminder, at a time they choose, to spend 5–10 minutes writing their notes. They tap ✅ Done when they've written.\n• A day lasts until 4 AM, so notes written after midnight still count.\n• When the admin enables it, you'll get a short summary here every morning at 10:00 about the previous day.\n\nThere's nothing you need to set up. Send /help anytime to see this again.",
   mentorNoSettings:
     "Reminders are only for mentees, so there's nothing to set up here. Send /help to see how it works.",
   unmuteTip:
     "🔔 Important: if this chat is muted, unmute it (tap ⋮ or the bot's name at the top → Unmute) so my messages reach you even when Telegram is closed.",
   mentorUnmuteTip:
     "🔔 Important: if this chat is muted, unmute it (tap ⋮ or the bot's name at the top → Unmute) so my messages reach you even when Telegram is closed.",
-  help: "📝 I send you a daily reminder to write your notes.\n\n/settings: reminder time, days and text\n/done: mark today as written\n/pause: pause reminders\n/resume: resume reminders\n\nA day lasts until 04:00, so writing after midnight still counts.",
+  help: "📝 I send you a daily reminder to write your notes.\n\n/settings: reminder time, days and text\n/done: mark today as written\n/pause: pause reminders\n/resume: resume reminders\n\nA day lasts until 4 AM, so writing after midnight still counts.",
   unknown: "Use /settings to change your reminders or /help to see what I can do.",
 
   defaultReminder: "📝 Time for today's notes! Take 5–10 minutes to write down what's on your mind.",
-  nudge: "🌙 Don't forget today's notes. You have until 04:00.",
+  nudge: "🌙 Don't forget today's notes. You have until 4 AM.",
   btnDone: "✅ Done",
   btnSnooze: (minutes: number) => (minutes === 60 ? "⏰ 1 hour" : `⏰ ${minutes} min`),
   doneAt: (time: string) => `✅ Done at ${time}. Well done!`,
   markedDone: "✅ Marked today as written. Well done!",
   alreadyDone: "Already marked as done ✅",
-  dayOver: "That day is already over.",
+  dayOver: "That day is already over (a day ends at 4 AM).",
   snoozedUntil: (time: string) => `⏰ OK, I'll remind you again at ${time}.`,
-  snoozeTooLate: "Too late to snooze: the day ends at 04:00.",
+  snoozeTooLate: "Too late to snooze: the day ends at 4 AM.",
 
   settingsTitle: "⚙️ Your settings",
   settingTime: "⏰ Time",
@@ -117,26 +117,26 @@ const az: Messages = {
     `Salam, ${name}! 👋\n\nHər gün sənə düşüncələrini yazmağı xatırladacağam. Aşağıdan sənə uyğun saatı və günləri seç. İstənilən vaxt /settings ilə dəyişə bilərsən.`,
   mentorWelcome: (name) => `Salam, ${name}! 👋 Hər şey hazırdır.`,
   mentorIntro:
-    "Bot belə işləyir:\n\n• Hər menti öz seçdiyi saatda 5–10 dəqiqə ayırıb qeydlərini yazmaq üçün gündəlik xatırlatma alır. Yazdıqdan sonra ✅ Yazdım düyməsinə basır.\n• Gün saat 04:00-a qədər davam edir, yəni gecə yarısından sonra yazılan qeydlər də sayılır.\n• Admin aktiv etdikdə, hər səhər saat 10:00-da burada ötən gün haqqında qısa hesabat alacaqsınız.\n\nSizin heç nə tənzimləməyinizə ehtiyac yoxdur. Bunu yenidən görmək üçün istənilən vaxt /help göndərin.",
+    "Bot belə işləyir:\n\n• Hər menti öz seçdiyi saatda 5–10 dəqiqə ayırıb qeydlərini yazmaq üçün gündəlik xatırlatma alır. Yazdıqdan sonra ✅ Yazdım düyməsinə basır.\n• Gün gecə saat 04:00-a qədər davam edir, yəni gecə yarısından sonra yazılan qeydlər də sayılır.\n• Admin aktiv etdikdə, hər səhər saat 10:00-da burada ötən gün haqqında qısa hesabat alacaqsınız.\n\nSizin heç nə tənzimləməyinizə ehtiyac yoxdur. Bunu yenidən görmək üçün istənilən vaxt /help göndərin.",
   mentorNoSettings:
     "Xatırlatmalar yalnız mentilər üçündür, burada tənzimləməli bir şey yoxdur. Necə işlədiyini görmək üçün /help göndərin.",
   unmuteTip:
     "🔔 Vacib: bu söhbət səssizdirsə, səsini aç (yuxarıda ⋮ və ya botun adına toxun → Səsi aç), ki, Telegram bağlı olanda da mesajlarım sənə çatsın.",
   mentorUnmuteTip:
     "🔔 Vacib: bu söhbət səssizdirsə, səsini açın (yuxarıda ⋮ və ya botun adına toxunun → Səsi aç), ki, Telegram bağlı olanda da mesajlarım sizə çatsın.",
-  help: "📝 Hər gün sənə qeydlərini yazmağı xatırladıram.\n\n/settings: xatırlatma saatı, günləri və mətni\n/done: bu günü yazılmış kimi qeyd et\n/pause: xatırlatmaları dayandır\n/resume: xatırlatmaları bərpa et\n\nGün saat 04:00-a qədər davam edir, yəni gecə yarısından sonra yazsan da sayılır.",
+  help: "📝 Hər gün sənə qeydlərini yazmağı xatırladıram.\n\n/settings: xatırlatma saatı, günləri və mətni\n/done: bu günü yazılmış kimi qeyd et\n/pause: xatırlatmaları dayandır\n/resume: xatırlatmaları bərpa et\n\nGün gecə saat 04:00-a qədər davam edir, yəni gecə yarısından sonra yazsan da sayılır.",
   unknown: "Xatırlatmaları dəyişmək üçün /settings, nə edə bildiyimi görmək üçün /help yaz.",
 
   defaultReminder: "📝 Bugünkü qeydlərinin vaxtıdır! 5–10 dəqiqə ayırıb ağlından keçənləri yaz.",
-  nudge: "🌙 Bugünkü qeydlərini unutma. Saat 04:00-a qədər vaxtın var.",
+  nudge: "🌙 Bugünkü qeydlərini unutma. Hələ gecə saat 04:00-a qədər vaxtın var.",
   btnDone: "✅ Yazdım",
   btnSnooze: (minutes) => (minutes === 60 ? "⏰ 1 saat" : `⏰ ${minutes} dəq`),
   doneAt: (time) => `✅ Yazıldı (${time}). Əla!`,
   markedDone: "✅ Bu gün yazılmış kimi qeyd olundu. Əla!",
   alreadyDone: "Artıq yazılmış kimi qeyd olunub ✅",
-  dayOver: "O gün artıq bitib.",
+  dayOver: "O gün artıq bitib (gün gecə saat 04:00-da bitir).",
   snoozedUntil: (time) => `⏰ Yaxşı, yenə xatırladacağam (${time}).`,
-  snoozeTooLate: "Təxirə salmaq üçün artıq gecdir: gün saat 04:00-da bitir.",
+  snoozeTooLate: "Təxirə salmaq üçün artıq gecdir: gün gecə saat 04:00-da bitir.",
 
   settingsTitle: "⚙️ Tənzimləmələrin",
   settingTime: "⏰ Saat",

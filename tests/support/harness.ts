@@ -104,6 +104,19 @@ export class Harness {
     await runTick(this.env, now, api);
   }
 
+  /** Starts `count` cron runs for the same minute at once, as when a slow run overlaps the next. */
+  async tickConcurrently(local: string, count: number): Promise<void> {
+    const now = baku(local);
+    vi.setSystemTime(now);
+    await Promise.all(
+      Array.from({ length: count }, () => {
+        const api = new Api(this.env.BOT_TOKEN);
+        this.telegram.install(api);
+        return runTick(this.env, now, api);
+      }),
+    );
+  }
+
   /** Runs a cron tick for every minute from `from` to `to` (inclusive), like the real `* * * * *` trigger. */
   async tickEveryMinute(from: string, to: string): Promise<void> {
     for (let at = baku(from).getTime(); at <= baku(to).getTime(); at += 60_000) {

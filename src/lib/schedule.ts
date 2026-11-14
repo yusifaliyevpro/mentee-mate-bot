@@ -45,8 +45,11 @@ export function planTick<T extends ScheduleRow>(rows: T[], now: Date, timeZone: 
 
   for (const row of rows) {
     if (row.paused || row.done_at !== null || !isActiveDay(row.weekdays, weekday)) continue;
+    // A snooze is retried like a reminder, for up to CATCH_UP_MINUTES after it was due, then dropped.
+    const snoozeAge = row.snooze_until === null ? null : nowSeconds - row.snooze_until;
+    const snoozeActive = snoozeAge !== null && snoozeAge < CATCH_UP_MINUTES * 60;
 
-    if (row.snooze_until !== null && row.snooze_until <= nowSeconds) {
+    if (snoozeActive && snoozeAge >= 0) {
       actions.push({ kind: "snooze", row });
     } else if (
       afterDayStart &&
@@ -59,7 +62,7 @@ export function planTick<T extends ScheduleRow>(rows: T[], now: Date, timeZone: 
     } else if (
       minutes >= NUDGE_AT &&
       row.nudged_at === null &&
-      row.snooze_until === null &&
+      !snoozeActive &&
       // Only a reminder that was actually sent today earns a nudge.
       row.reminded_at !== null &&
       nowSeconds - row.reminded_at >= NUDGE_GAP_SECONDS

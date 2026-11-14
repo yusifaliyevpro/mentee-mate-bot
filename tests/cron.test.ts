@@ -311,24 +311,120 @@ describe("a full day, minute by minute", () => {
   });
 });
 
-describe("delivery failures", () => {
-  it("don't stop the others, and the blocked user isn't retried every minute", async () => {
-    await h.onboard(MURAD);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    h.telegram.failWhen("sendMessage", (payload) =>
-      payload.chat_id === AYSEL.id
-        ? { error_code: 403, description: "Forbidden: bot was blocked by the user" }
-        : undefined,
-    );
-    await h.tickEveryMinute("2026-11-14 21:00", "2026-11-14 21:05");
+/** Fails sends to `chatId` for the first `times` attempts, then lets them through. */
+function failFirst(chatId: number, times: number, error_code = 500): void {
+  let failures = 0;
+  h.telegram.failWhen("sendMessage", (payload) =>
+    payload.chat_id === chatId && failures++ < times ? { error_code, description: "Temporary failure" } : undefined,
+  );
+}
 
+describe("delivery failures", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("don't stop the others", async () => {
+    await h.onboard(MURAD);
+    failFirst(AYSEL.id, 100, 403);
+    await h.tick("2026-11-14 21:00");
     expect(h.telegram.recipients(ADMIN.id)).toEqual([AYSEL.id, MURAD.id]);
-    expect(h.day(MURAD, "2026-11-14")?.reminded_at).not.toBeNull();
+    expect(h.day(MURAD, "2026-11-14")?.reminded_at).toBe(seconds("2026-11-14 21:00"));
+  });
+
+  it("don't count a reminder as sent until Telegram accepts it", async () => {
+    failFirst(AYSEL.id, 1);
+    await h.tick("2026-11-14 21:00");
+    expect(h.day(AYSEL, "2026-11-14")?.reminded_at ?? null).toBeNull();
+  });
+
+  it("are retried the next minute", async () => {
+    failFirst(AYSEL.id, 2, 429);
+    await h.tickEveryMinute("2026-11-14 21:00", "2026-11-14 21:10");
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(3);
+    expect(h.day(AYSEL, "2026-11-14")?.reminded_at).toBe(seconds("2026-11-14 21:02"));
+  });
+
+  it("give up after the 15-minute window, so a blocked user isn't retried all day", async () => {
+    failFirst(AYSEL.id, 1000, 403);
+    await h.tickEveryMinute("2026-11-14 21:00", "2026-11-14 23:59");
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(15);
+    expect(h.day(AYSEL, "2026-11-14")?.reminded_at ?? null).toBeNull();
+  });
+
+  it("retry a snoozed reminder", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.at("2026-11-14 21:00");
+    await h.tap(AYSEL, "snooze:30:2026-11-14");
+    h.telegram.clear();
+    failFirst(AYSEL.id, 1);
+    await h.tickEveryMinute("2026-11-14 21:30", "2026-11-14 21:40");
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(2);
+    expect(h.day(AYSEL, "2026-11-14")).toMatchObject({ snooze_until: null, reminded_at: seconds("2026-11-14 21:31") });
+  });
+
+  it("give up on a snooze after the window, and still allow the nudge", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.at("2026-11-14 21:00");
+    await h.tap(AYSEL, "snooze:30:2026-11-14");
+    h.telegram.clear();
+    failFirst(AYSEL.id, 15);
+    await h.tickEveryMinute("2026-11-14 21:30", "2026-11-14 23:59");
+    // 15 failed snooze attempts (21:30–21:44), then the snooze is dropped and the nudge goes through.
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([...Array.from({ length: 15 }, () => az.defaultReminder), az.nudge]);
+    expect(h.day(AYSEL, "2026-11-14")?.nudged_at).toBe(seconds("2026-11-14 23:50"));
+  });
+
+  it("retry the nudge", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.telegram.clear();
+    failFirst(AYSEL.id, 1);
+    await h.tickEveryMinute("2026-11-14 23:50", "2026-11-14 23:55");
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(2);
+    expect(h.day(AYSEL, "2026-11-14")?.nudged_at).toBe(seconds("2026-11-14 23:51"));
+  });
+});
+
+describe("overlapping cron runs", () => {
+  it("send each reminder once", async () => {
+    await h.onboard(MURAD, NIGAR);
+    await h.tickConcurrently("2026-11-14 21:00", 3);
+    for (const user of [ADMIN, AYSEL, MURAD, NIGAR]) {
+      expect(h.telegram.messagesTo(user.id)).toHaveLength(1);
+    }
+  });
+
+  it("send each nudge once", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.telegram.clear();
+    await h.tickConcurrently("2026-11-14 23:50", 3);
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.nudge]);
+  });
+
+  it("send each snooze once", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.at("2026-11-14 21:00");
+    await h.tap(AYSEL, "snooze:30:2026-11-14");
+    h.telegram.clear();
+    await h.tickConcurrently("2026-11-14 21:30", 3);
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(1);
+  });
+
+  it("don't leave a send stuck if a run died mid-send", async () => {
+    // A run claimed Aysel's reminder at 21:00 and never finished.
+    h.db.exec(
+      "INSERT INTO days (tg_id, day, sending_at) VALUES (?, '2026-11-14', ?)",
+      AYSEL.id,
+      seconds("2026-11-14 21:00"),
+    );
+    await h.tickEveryMinute("2026-11-14 21:00", "2026-11-14 21:14");
+    expect(h.telegram.messagesTo(AYSEL.id)).toHaveLength(1);
   });
 });
 
 /** Aysel writes on Saturday 2026-11-14; Murad has Saturdays off. */
 async function yesterday(): Promise<void> {
+  await h.tick("2026-11-14 21:00");
   h.at("2026-11-14 22:00");
   await h.send(AYSEL, "/done");
   // Murad turned Saturdays off.
@@ -385,7 +481,9 @@ describe("mentor summary", () => {
 
   it("is sent again the next morning about the next day", async () => {
     await h.tap(ADMIN, "a:digest:count");
+    await h.tick("2026-11-14 21:00");
     await h.tick("2026-11-15 10:00");
+    await h.tick("2026-11-15 21:00");
     await h.tick("2026-11-16 10:00");
     const [first, second] = h.telegram.sentTo(MENTOR.id);
     expect(first).toContain("14.11.2026");
@@ -394,6 +492,7 @@ describe("mentor summary", () => {
 
   it("is sent late if 10:00 was missed", async () => {
     await h.tap(ADMIN, "a:digest:count");
+    await h.tick("2026-11-14 21:00");
     await h.tick("2026-11-15 14:00");
     expect(h.telegram.sentTo(MENTOR.id)).toHaveLength(1);
   });
@@ -408,10 +507,52 @@ describe("mentor summary", () => {
 
   it("does not count notes written after 04:00 for the previous day", async () => {
     await h.tap(ADMIN, "a:digest:names");
+    await h.tick("2026-11-14 21:00");
     h.at("2026-11-15 08:00");
     await h.send(MURAD, "/done");
     await h.tick("2026-11-15 10:00");
     expect(h.telegram.sentTo(MENTOR.id)[0]).toContain(`${az.digestMissed}: Aysel, Murad, Nigar, Yusif`);
+  });
+
+  it("leaves someone out of the total if they weren't sent a reminder that day", async () => {
+    await h.tap(ADMIN, "a:digest:count");
+    await yesterday();
+    // Lamiya joins at 23:13, after her 21:00 reminder time, so she gets nothing that day.
+    const lamiya = { id: 7, first_name: "Lamiya", username: "lamiya_f" };
+    await h.send(ADMIN, "/allow @lamiya_f");
+    h.at("2026-11-14 23:13");
+    await h.send(lamiya, "/start");
+    h.telegram.clear();
+    await h.tick("2026-11-15 10:00");
+    expect(h.telegram.sentTo(MENTOR.id)).toEqual([
+      `${az.digestTitle("14.11.2026")}\n\n${az.digestCount(1, 3)}\n${az.digestOffCount(1)}`,
+    ]);
+  });
+
+  it("leaves them out of the names too", async () => {
+    await h.tap(ADMIN, "a:digest:names");
+    await h.tick("2026-11-14 21:00");
+    const lamiya = { id: 7, first_name: "Lamiya", username: "lamiya_f" };
+    await h.send(ADMIN, "/allow @lamiya_f");
+    h.at("2026-11-14 23:13");
+    await h.send(lamiya, "/start");
+    await h.tick("2026-11-15 10:00");
+    const [summary] = h.telegram.sentTo(MENTOR.id);
+    expect(summary).toContain(az.digestTitle("14.11.2026"));
+    expect(summary).not.toContain("Lamiya");
+  });
+
+  it("leaves out someone whose reminder couldn't be delivered", async () => {
+    await h.tap(ADMIN, "a:digest:names");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    h.telegram.failWhen("sendMessage", (payload) =>
+      payload.chat_id === NIGAR.id
+        ? { error_code: 403, description: "Forbidden: bot was blocked by the user" }
+        : undefined,
+    );
+    await h.tickEveryMinute("2026-11-14 21:00", "2026-11-14 21:20");
+    await h.tick("2026-11-15 10:00");
+    expect(h.telegram.sentTo(MENTOR.id)[0]).toContain(`${az.digestMissed}: Aysel, Murad, Yusif`);
   });
 
   it("shows paused mentees as a day off", async () => {
@@ -425,6 +566,7 @@ describe("mentor summary", () => {
     await h.send(ADMIN, "/remove @leyla_mentor");
     await h.send(ADMIN, "/mentor @leyla_mentor");
     await h.tap(ADMIN, "a:digest:count");
+    await h.tick("2026-11-14 21:00");
     await h.tick("2026-11-15 10:00");
     expect(h.setting("digest_sent_day")).toBeUndefined();
 
@@ -437,6 +579,7 @@ describe("mentor summary", () => {
   it("follows the bot language", async () => {
     await h.tap(ADMIN, "a:lang:en");
     await h.tap(ADMIN, "a:digest:count");
+    await h.tick("2026-11-14 21:00");
     await h.tick("2026-11-15 10:00");
     expect(h.telegram.sentTo(MENTOR.id)[0]).toContain(en.digestTitle("14.11.2026"));
   });
@@ -445,13 +588,21 @@ describe("mentor summary", () => {
     const second = { id: 51, first_name: "Kamran", username: "kamran_mentor" };
     await h.onboardMentor(second);
     await h.tap(ADMIN, "a:digest:count");
+    await h.tick("2026-11-14 21:00");
     await h.tick("2026-11-15 10:00");
     expect(h.telegram.sentTo(MENTOR.id)).toHaveLength(1);
     expect(h.telegram.sentTo(second.id)).toHaveLength(1);
   });
 
+  it("is not sent when nobody was reminded and nobody wrote", async () => {
+    await h.tap(ADMIN, "a:digest:count");
+    await h.tick("2026-11-15 10:00");
+    expect(h.telegram.sentTo(MENTOR.id)).toEqual([]);
+  });
+
   it("is never shown to mentees", async () => {
     await h.tap(ADMIN, "a:digest:names");
+    await h.tick("2026-11-14 21:00");
     h.telegram.clear();
     await h.tick("2026-11-15 10:00");
     const recipients = h.telegram.recipients();

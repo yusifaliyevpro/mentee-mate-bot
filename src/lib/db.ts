@@ -28,7 +28,7 @@ export interface Settings {
 export type ReminderRow = ScheduleRow & { message: string | null };
 
 const MEMBER_FIELDS = ["remind_at", "weekdays", "message", "paused", "awaiting", "welcomed_role"] as const;
-const DAY_FIELDS = ["reminded_at", "skipped_at", "snooze_until", "nudged_at", "done_at"] as const;
+const DAY_FIELDS = ["reminded_at", "skipped_at", "snooze_until", "nudged_at", "done_at", "sending_at"] as const;
 
 type MemberUpdate = Partial<Pick<Member, (typeof MEMBER_FIELDS)[number]>>;
 type DayUpdate = Partial<Record<(typeof DAY_FIELDS)[number], number | null>>;
@@ -159,6 +159,25 @@ export async function setDay(db: D1Database, tgId: number, day: string, update: 
     .run();
 }
 
+/** A claim older than this belongs to a run that died, so another run may take it over. */
+export const STALE_CLAIM_SECONDS = 120;
+
+/**
+ * Atomically marks a day row as being sent by this run. Returns the fresh row, or null when another
+ * run holds a live claim, so overlapping cron runs never send the same message twice.
+ */
+export function claimDay(db: D1Database, tgId: number, day: string, nowSeconds: number): Promise<DayUpdate | null> {
+  return db
+    .prepare(
+      `INSERT INTO days (tg_id, day, sending_at) VALUES (?, ?, ?)
+       ON CONFLICT(tg_id, day) DO UPDATE SET sending_at = excluded.sending_at
+       WHERE days.sending_at IS NULL OR days.sending_at < ?
+       RETURNING *`,
+    )
+    .bind(tgId, day, nowSeconds, nowSeconds - STALE_CLAIM_SECONDS)
+    .first<DayUpdate>();
+}
+
 export async function reminderRows(db: D1Database, day: string): Promise<ReminderRow[]> {
   const { results } = await db
     .prepare(
@@ -175,7 +194,7 @@ export async function reminderRows(db: D1Database, day: string): Promise<Reminde
 export async function digestRows(db: D1Database, day: string): Promise<DigestRow[]> {
   const { results } = await db
     .prepare(
-      `SELECT m.username, m.name, m.weekdays, m.paused, d.done_at
+      `SELECT m.username, m.name, m.weekdays, m.paused, d.reminded_at, d.done_at
        FROM members m LEFT JOIN days d ON d.tg_id = m.tg_id AND d.day = ?
        WHERE m.role = 'mentee' AND m.tg_id IS NOT NULL
        ORDER BY COALESCE(m.name, m.username)`,

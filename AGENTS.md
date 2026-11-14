@@ -40,12 +40,14 @@ tests/          vitest suites; tests/support/ has the fakes and harness
 - **The day runs 04:00 → 04:00** local time (`DAY_START_HOUR`). Notes written at 01:30 count for the previous day. "Logical day" in the code means this.
 - **Timezone:** `TIMEZONE` var, default `Asia/Baku`. Times in the DB are minutes since local midnight (`remind_at`) or unix seconds (`days.*_at`).
 - **Reminder times:** the picker offers 06:00–23:45 in 15-minute steps.
-- **Catch-up:** if cron misses the exact minute, a reminder can still go out up to 15 minutes late.
+- **Catch-up and delivery:** if cron misses the exact minute, a reminder can still go out up to 15 minutes late. A message only counts as sent once Telegram accepts it; a failed send is retried every minute within that 15-minute window (snoozes too, measured from when they were due), then dropped.
+- **No duplicates:** each send is claimed first with `claimDay` (`days.sending_at`), so overlapping cron runs can't both send it. A claim older than 2 minutes is treated as abandoned.
 - **Registering or picking a time that already passed today:** the reminder starts tomorrow, with no immediate catch-up.
 - **Picking a later time today:** this re-arms today's reminder and replaces a pending snooze, unless the day is already done.
 - **Snooze:** 30 or 60 minutes only, and never past 04:00.
 - **23:50 nudge:** only goes to someone who was actually sent a reminder that day and isn't done. It's skipped if that reminder went out less than an hour earlier, or a snooze is pending. A reminder skipped because its time had passed is stored in `days.skipped_at`, never in `reminded_at`, so it doesn't count.
-- **Mentor summary at 10:00:** covers the previous logical day. The mode (`off` / `count` / `names`) is admin-only and the mentor never sees it. Days off and paused mentees show as 💤.
+- **Mentor summary at 10:00:** covers the previous logical day. The mode (`off` / `count` / `names`) is admin-only and the mentor never sees it. Days off and paused mentees show as 💤. Someone who wasn't sent a reminder that day (joined late, time already passed, delivery failed) and didn't write is left out entirely, so the total shrinks (e.g. 4/4). If nobody counts, no summary is sent.
+- **Wording:** messages say the day ends at night: "gecə saat 04:00" in Azerbaijani and "4 AM" in English (a test enforces this).
 - **Access:**
   - The admin is identified by numeric `ADMIN_ID` and auto-registered as a mentee.
   - Everyone else needs an allowlisted username (`/allow`).

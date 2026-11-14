@@ -17,7 +17,7 @@ Built for mentorship groups (like ours at Elachi) where the mentor asks everyone
 - **Late-night friendly.** A day runs from 04:00 to 04:00, so notes written after midnight still count.
 - **23:50 nudge.** Mentees who got a reminder that day but haven't tapped Done get a gentle "you have until 04:00" message.
 - **Flexible.** Moving the reminder to later today re-arms today's reminder, and a time that has already passed starts tomorrow.
-- **Mentor summary at 10:00.** Covers the previous day. The admin chooses whether it's off, shows counts only, or lists names, and the mentor is never told which. Mentees who had a day off are shown as 💤.
+- **Mentor summary at 10:00.** Covers the previous day. The admin chooses whether it's off, shows counts only, or lists names, and the mentor is never told which. Mentees who had a day off are shown as 💤, and anyone who wasn't sent a reminder that day isn't counted at all.
 - **Private.** Only usernames on the admin's allowlist can use the bot.
 - **Azerbaijani and English.** The admin picks the language for the whole bot.
 - **No website, no login.** Everything happens in Telegram, with inline buttons.
