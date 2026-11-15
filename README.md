@@ -8,7 +8,7 @@
 
 > A Telegram bot that reminds mentees to write their daily notes, each at a time they choose, and can send their mentor a short summary every morning.
 
-Built for mentorship groups (like ours at Elachi) where the mentor asks everyone to spend 5–10 minutes a day writing down their thoughts. Instead of one person posting the same reminder in the group chat, each mentee gets a private reminder at a time that suits them.
+Built for mentorship groups where the mentor asks everyone to spend 5–10 minutes a day writing down their thoughts. Instead of one person posting the same reminder in the group chat, each mentee gets a private reminder at a time that suits them.
 
 ## Features
 
