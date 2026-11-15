@@ -878,6 +878,93 @@ describe("marking the day as done", () => {
   });
 });
 
+describe("/undone", () => {
+  beforeEach(async () => {
+    await h.onboard(AYSEL);
+  });
+
+  it("unmarks today", async () => {
+    h.at("2026-11-14 19:00");
+    await h.send(AYSEL, "/done");
+    await h.send(AYSEL, "/undone");
+    expect(h.day(AYSEL, "2026-11-14")?.done_at).toBeNull();
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.markedDone, az.undone]);
+  });
+
+  it("says so when today isn't done", async () => {
+    await h.send(AYSEL, "/undone");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.notDoneYet]);
+    expect(h.day(AYSEL, "2026-11-14")).toBeUndefined();
+  });
+
+  it("a second /undone says it isn't done", async () => {
+    await h.send(AYSEL, "/done");
+    await h.send(AYSEL, "/undone");
+    await h.send(AYSEL, "/undone");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.markedDone, az.undone, az.notDoneYet]);
+  });
+
+  it("after midnight it unmarks the previous day", async () => {
+    h.at("2026-11-14 22:00");
+    await h.send(AYSEL, "/done");
+    h.at("2026-11-15 01:30");
+    await h.send(AYSEL, "/undone");
+    expect(h.day(AYSEL, "2026-11-14")?.done_at).toBeNull();
+  });
+
+  it("from 04:00 it no longer touches yesterday", async () => {
+    h.at("2026-11-14 22:00");
+    await h.send(AYSEL, "/done");
+    h.at("2026-11-15 04:00");
+    await h.send(AYSEL, "/undone");
+    expect(h.day(AYSEL, "2026-11-14")?.done_at).toBe(seconds("2026-11-14 22:00"));
+    expect(h.telegram.sentTo(AYSEL.id).at(-1)).toBe(az.notDoneYet);
+  });
+
+  it("brings back today's reminder when undone before it", async () => {
+    h.at("2026-11-14 18:00");
+    await h.send(AYSEL, "/done");
+    await h.send(AYSEL, "/undone");
+    h.telegram.clear();
+    await h.tick("2026-11-14 21:00");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.defaultReminder]);
+  });
+
+  it("brings back the 23:50 nudge after a sent reminder", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.at("2026-11-14 21:10");
+    await h.tap(AYSEL, "done:2026-11-14");
+    await h.send(AYSEL, "/undone");
+    h.telegram.clear();
+    await h.tick("2026-11-14 23:50");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([az.nudge]);
+  });
+
+  it("keeps the delivered reminder, so it isn't sent again", async () => {
+    await h.tick("2026-11-14 21:00");
+    h.at("2026-11-14 21:05");
+    await h.send(AYSEL, "/done");
+    await h.send(AYSEL, "/undone");
+    h.telegram.clear();
+    await h.tickEveryMinute("2026-11-14 21:05", "2026-11-14 21:20");
+    expect(h.telegram.sentTo(AYSEL.id)).toEqual([]);
+  });
+
+  it("is in English when the bot is", async () => {
+    await h.send(ADMIN, "/admin");
+    await h.tap(ADMIN, "a:lang:en");
+    await h.send(AYSEL, "/undone");
+    expect(h.telegram.sentTo(AYSEL.id).at(-1)).toBe(en.notDoneYet);
+  });
+
+  it("the mentor can't use it", async () => {
+    await h.onboardMentor();
+    h.telegram.clear();
+    await h.send(MENTOR, "/undone");
+    expect(h.telegram.sentTo(MENTOR.id)).not.toContain(az.notDoneYet);
+  });
+});
+
 describe("snooze", () => {
   beforeEach(async () => {
     await h.onboard(AYSEL);

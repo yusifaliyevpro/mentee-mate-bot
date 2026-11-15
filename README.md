@@ -13,9 +13,9 @@ Built for mentorship groups (like ours at Elachi) where the mentor asks everyone
 ## Features
 
 - **Personal reminders.** Each mentee picks their own time (06:00–23:45, in 15-minute steps), which weekdays to get reminders on, and the reminder text.
-- **One tap to mark done.** Reminders come with **✅ Done**, **⏰ 30 min** and **⏰ 1 hour** buttons. `/done` marks the day before the reminder even arrives.
+- **One tap to mark done.** Reminders come with **✅ Done**, **⏰ 30 min** and **⏰ 1 hour** buttons. `/done` marks the day before the reminder even arrives, and `/undone` takes it back.
 - **Late-night friendly.** A day runs from 04:00 to 04:00, so notes written after midnight still count.
-- **23:50 nudge.** Mentees who got a reminder that day but haven't tapped Done get a gentle "you have until 04:00" message.
+- **23:50 nudge.** Mentees who got a reminder that day but haven't tapped Done get a gentle "you have until 04:00" message, with their streak (🔥 N days in a row) once it's 2 days or more. Days off and pauses don't break a streak.
 - **Flexible.** Moving the reminder to later today re-arms today's reminder, and a time that has already passed starts tomorrow.
 - **Mentor summary at 10:00.** Covers the previous day. The admin chooses whether it's off, shows counts only, or lists names, and the mentor is never told which. Mentees who had a day off are shown as 💤, and anyone who wasn't sent a reminder that day isn't counted at all.
 - **Private.** Only usernames on the admin's allowlist can use the bot.
@@ -38,6 +38,7 @@ The bot runs on [Cloudflare Workers](https://workers.dev) (free plan) with [gram
 | `/start`    | First time: welcome and settings. After that: just the settings |
 | `/settings` | Change reminder time, days and text                             |
 | `/done`     | Mark today as written (no reminder needed)                      |
+| `/undone`   | Undo today's ✅ if it was tapped by mistake                     |
 | `/pause`    | Pause reminders (vacation, exams…)                              |
 | `/resume`   | Turn reminders back on                                          |
 | `/cancel`   | Stop editing the reminder text without changing it              |

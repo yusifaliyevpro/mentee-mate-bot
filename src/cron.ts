@@ -2,8 +2,9 @@ import { Api, type InlineKeyboard } from "grammy";
 import type { Env } from "./env";
 import * as db from "./lib/db";
 import { buildDigest, digestDayToSend, digestEntries } from "./lib/digest";
-import { messages } from "./lib/i18n";
+import { type Messages, messages } from "./lib/i18n";
 import { type ActionKind, planTick } from "./lib/schedule";
+import { MIN_STREAK, streak } from "./lib/streak";
 import { logicalDay, unixSeconds } from "./lib/time";
 import { reminderKeyboard } from "./lib/views";
 
@@ -26,6 +27,11 @@ function stillDue(kind: ActionKind, row: Awaited<ReturnType<typeof db.claimDay>>
   return !row.nudged_at && typeof row.reminded_at === "number";
 }
 
+async function nudgeText(env: Env, t: Messages, tgId: number, day: string): Promise<string> {
+  const days = streak(await db.streakRows(env.DB, tgId, day));
+  return days >= MIN_STREAK ? `${t.nudge}\n\n${t.nudgeStreak(days)}` : t.nudge;
+}
+
 export async function runTick(env: Env, now: Date, api = new Api(env.BOT_TOKEN)): Promise<void> {
   const settings = await db.getSettings(env.DB);
   const t = messages[settings.lang];
@@ -40,7 +46,7 @@ export async function runTick(env: Env, now: Date, api = new Api(env.BOT_TOKEN))
       continue;
     }
 
-    const text = kind === "nudge" ? t.nudge : (row.message ?? t.defaultReminder);
+    const text = kind === "nudge" ? await nudgeText(env, t, row.tg_id, day) : (row.message ?? t.defaultReminder);
     const sent = await send(api, row.tg_id, text, reminderKeyboard(t, day));
     // Only a delivered message counts; otherwise the next run retries while it's still due.
     const delivered = kind === "nudge" ? { nudged_at: nowSeconds } : { reminded_at: nowSeconds, snooze_until: null };

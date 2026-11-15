@@ -229,6 +229,17 @@ export function createBot(env: Env): Bot<BotContext> {
     await ctx.reply(result === "done" ? ctx.t.markedDone : ctx.t.alreadyDone);
   });
 
+  mentee.command("undone", async (ctx) => {
+    const { day } = logicalDay(now(), timeZone);
+    const existing = await db.getDay(env.DB, ctx.userId, day);
+    if (!existing?.done_at) {
+      await ctx.reply(ctx.t.notDoneYet);
+      return;
+    }
+    await db.setDay(env.DB, ctx.userId, day, { done_at: null });
+    await ctx.reply(ctx.t.undone);
+  });
+
   mentee.command("pause", async (ctx) => {
     await db.updateMember(env.DB, ctx.userId, { paused: 1 });
     await ctx.reply(ctx.t.paused);

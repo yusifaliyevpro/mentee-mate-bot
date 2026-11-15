@@ -2,7 +2,7 @@ import type { Api } from "grammy";
 import type { Role } from "./lib/db";
 import { type Lang, messages } from "./lib/i18n";
 
-const USER_COMMANDS = ["start", "settings", "done", "pause", "resume", "help"] as const;
+const USER_COMMANDS = ["start", "settings", "done", "undone", "pause", "resume", "help"] as const;
 const ADMIN_COMMANDS = ["admin", "members", "allow", "mentor", "remove"] as const;
 const MENTOR_COMMANDS = ["start", "help"] as const;
 

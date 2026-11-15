@@ -28,6 +28,7 @@ src/
     time.ts     Timezone math, the 04:00 day boundary, constants
     schedule.ts planTick(): pure decision of what a tick sends
     digest.ts   Mentor summary building (pure)
+    streak.ts   Streak counting for the nudge (pure)
     db.ts       All SQL
     views.ts    Message texts and inline keyboards (pure)
     i18n.ts     Azerbaijani and English strings
@@ -45,7 +46,9 @@ tests/          vitest suites; tests/support/ has the fakes and harness
 - **Registering or picking a time that already passed today:** the reminder starts tomorrow, with no immediate catch-up.
 - **Picking a later time today:** this re-arms today's reminder and replaces a pending snooze, unless the day is already done.
 - **Snooze:** 30 or 60 minutes only, and never past 04:00.
+- **`/undone`:** clears today's `done_at` only (never a finished day). Delivery stamps are kept, so a sent reminder isn't resent but the 23:50 nudge comes back.
 - **23:50 nudge:** only goes to someone who was actually sent a reminder that day and isn't done. It's skipped if that reminder went out less than an hour earlier, or a snooze is pending. A reminder skipped because its time had passed is stored in `days.skipped_at`, never in `reminded_at`, so it doesn't count.
+- **Streak:** the nudge adds "🔥 N days in a row" from 2 days (`lib/streak.ts`). Only a reminded day without ✅ breaks it; days off, pauses and days with no reminder are skipped.
 - **Mentor summary at 10:00:** covers the previous logical day. The mode (`off` / `count` / `names`) is admin-only and the mentor never sees it. Days off and paused mentees show as 💤. Someone who wasn't sent a reminder that day (joined late, time already passed, delivery failed) and didn't write is left out entirely, so the total shrinks (e.g. 4/4). If nobody counts, no summary is sent.
 - **Wording:** messages say the day ends at night: "gecə saat 04:00" in Azerbaijani and "4 AM" in English (a test enforces this).
 - **Access:**

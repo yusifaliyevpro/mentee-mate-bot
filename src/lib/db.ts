@@ -1,6 +1,7 @@
 import { type DigestMode, type DigestRow, isDigestMode } from "./digest";
 import { type Lang, isLang } from "./i18n";
 import type { ScheduleRow } from "./schedule";
+import type { StreakDay } from "./streak";
 
 export type Role = "mentee" | "mentor";
 
@@ -176,6 +177,19 @@ export function claimDay(db: D1Database, tgId: number, day: string, nowSeconds: 
     )
     .bind(tgId, day, nowSeconds, nowSeconds - STALE_CLAIM_SECONDS)
     .first<DayUpdate>();
+}
+
+/** Past days (before `day`) that matter for the streak, newest first. */
+export async function streakRows(db: D1Database, tgId: number, day: string): Promise<StreakDay[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT day, reminded_at, done_at FROM days
+       WHERE tg_id = ? AND day < ? AND (reminded_at IS NOT NULL OR done_at IS NOT NULL)
+       ORDER BY day DESC LIMIT 400`,
+    )
+    .bind(tgId, day)
+    .all<StreakDay>();
+  return results;
 }
 
 export async function reminderRows(db: D1Database, day: string): Promise<ReminderRow[]> {
